@@ -2647,7 +2647,6 @@ namespace PoliticsMod
             return any;
         }
 
-        public static void RevertCoalitionPolicies()
         public static void RevertCoalitionPolicies(bool skipLog = false)
         {
             var st = PoliticsState.Instance;
@@ -5156,6 +5155,7 @@ namespace PoliticsMod
                 if (view == null) return;
                 _instance = view.AddUIComponent(typeof(ElectionStatsPanel)) as ElectionStatsPanel;
             }
+
             if (_instance != null)
             {
                 _instance.isVisible = !_instance.isVisible;
@@ -5165,7 +5165,7 @@ namespace PoliticsMod
 
         private UILabel _title;
         private UILabel _subtitle;
-        private UIPanel _chartPanel;
+        private UIScrollablePanel _chartPanel;
 
         public override void Start()
         {
@@ -5257,13 +5257,14 @@ namespace PoliticsMod
                 _subtitle.text = "No election has run yet.";
                 return;
             }
+
             var r = st.LastResult;
 
             int total = 0;
             int[] tally = r.VotesByGrievance ?? new int[9];
             for (int i = 0; i < tally.Length; i++) total += tally[i];
             _subtitle.text = "Election " + r.Year + "-" + r.Month +
-                " — " + total + " votes sampled  •  Turnout " + (int)(r.Turnout * 100) + "%";
+                             " — " + total + " votes sampled  •  Turnout " + (int)(r.Turnout * 100) + "%";
 
             float y = 0f;
             // --- Shared party legend (used by all demographic charts) ---
@@ -5310,6 +5311,7 @@ namespace PoliticsMod
                 lbl.relativePosition = new Vector3(x + 18, y + 2);
                 x += 18 + Mathf.Max(40f, p.ShortName.Length * 9f);
             }
+
             return y + 28f;
         }
 
@@ -5329,13 +5331,13 @@ namespace PoliticsMod
             var colors = new Color32[]
             {
                 new Color32(180, 180, 190, 255),
-                new Color32(255, 152,   0, 255),
-                new Color32(244,  67,  54, 255),
-                new Color32(103,  58, 183, 255),
-                new Color32( 63, 181, 235, 255),
-                new Color32(233,  30,  99, 255),
-                new Color32( 76, 175,  80, 255),
-                new Color32(255, 235,  59, 255),
+                new Color32(255, 152, 0, 255),
+                new Color32(244, 67, 54, 255),
+                new Color32(103, 58, 183, 255),
+                new Color32(63, 181, 235, 255),
+                new Color32(233, 30, 99, 255),
+                new Color32(76, 175, 80, 255),
+                new Color32(255, 235, 59, 255),
                 new Color32(156, 204, 101, 255),
             };
             int rows = Math.Min(labels.Length, tally.Length);
@@ -5371,6 +5373,7 @@ namespace PoliticsMod
                 pctLbl.size = new Vector2(85, rowH);
                 y += rowH;
             }
+
             return y + 10f;
         }
 
@@ -5400,7 +5403,7 @@ namespace PoliticsMod
             float chartW = _chartPanel.width - 10f;
             float rowH = 22f;
             float barStart = 130f;
-            float barW     = chartW - 220f;
+            float barW = chartW - 220f;
 
             for (int b = 0; b < buckets && b < bucketLabels.Length; b++)
             {
@@ -5441,6 +5444,8 @@ namespace PoliticsMod
                 totalLbl.size = new Vector2(85, rowH);
                 y += rowH;
             }
+
             return y + 10f;
         }
+    }
 }
