@@ -146,11 +146,7 @@ namespace PoliticsMod
                 _subtitle.text = "No election data yet.";
                 var msg = _chartPanel.AddUIComponent<UILabel>();
                 msg.text =
-                    "No election has completed yet in this city.\n\n" +
-                    "Election statistics (vote breakdowns, grievance analysis, demographic splits)\n" +
-                    "are populated after the first election runs and then persist in your save.\n\n" +
-                    "You can call a snap election now from the main Politics panel if you\n" +
-                    "want to skip straight to the first vote.";
+                    "No election stat data found.";
                 msg.textScale = 0.9f;
                 msg.autoSize = false;
                 msg.size = new Vector2(_chartPanel.width - 20f, 180f);
