@@ -757,18 +757,16 @@ namespace PoliticsMod
 
             // --- Utility buttons ----------------------------------------
             var utilGroup = helper.AddGroup("Utilities");
-            utilGroup.AddButton("Force election now", () => {
-                if (PoliticsState.Instance != null && PoliticsState.Instance.Initialized)
-                    ElectionEngine.TriggerCampaign(force: true);
-            });
-            utilGroup.AddButton("Reset political state", () => {
-                if (PoliticsState.Instance != null)
+            utilGroup.AddButton("Open Elections panel", () => {
+                if (PoliticsPanel.Instance != null)
                 {
-                    PoliticsState.Instance.History.Clear();
-                    PoliticsState.Instance.CurrentSeats = new int[PartyCountRef.Value];
-                    PoliticsState.Instance.CoalitionPartyIds.Clear();
-                    PoliticsState.Instance.Phase = ElectionPhase.Idle;
-                    PoliticsState.Instance.DaysSinceLastElection = 0f;
+                    PoliticsPanel.Show();
+                }
+                else
+                {
+                    // Panel not created yet: happens when the user opens the
+                    // mod settings from the main menu (no save loaded).
+                    Debug.Log(Config.LogPrefix + "Open Elections panel: no active city. Load a save first.");
                 }
             });
         }
@@ -3731,6 +3729,20 @@ namespace PoliticsMod
         public static string ResultsPopupText;
         public static float  ResultsPopupShownUntil;
 
+        // Singleton pointer set when the loading extension creates the panel.
+        // Used by the mod settings panel to open the main window.
+        public static PoliticsPanel Instance;
+
+        public static void Show()
+        {
+            if (Instance != null) Instance.isVisible = true;
+        }
+
+        public static void Toggle()
+        {
+            if (Instance != null) Instance.isVisible = !Instance.isVisible;
+        }
+
         private UILabel _title;
         private UILabel _phaseLabel;
         private UILabel _coalitionLabel;
@@ -3753,7 +3765,14 @@ namespace PoliticsMod
             canFocus = true;
             isInteractive = true;
             relativePosition = new Vector3(120, 80);
+            Instance = this;
             BuildUI();
+        }
+
+        public override void OnDestroy()
+        {
+            if (Instance == this) Instance = null;
+            base.OnDestroy();
         }
 
         private void BuildUI()
