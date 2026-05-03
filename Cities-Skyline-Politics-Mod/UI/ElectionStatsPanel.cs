@@ -131,9 +131,32 @@ namespace PoliticsMod
             foreach (var g in kids) UnityEngine.Object.Destroy(g);
 
             var st = PoliticsState.Instance;
+            PoliticsUserMod.Log("Stats.Refresh: st=" + (st == null ? "null" : "ok") +
+                                " History=" + (st == null ? -1 : st.History.Count) +
+                                " LastResult=" + (st == null || st.LastResult == null ? "null" : "set"));
+            // If we have history but LastResult wasn't set (e.g. loaded from a
+            // save and the restore code path missed it), recover by promoting
+            // the tail of History.
+            if (st != null && st.LastResult == null && st.History != null && st.History.Count > 0)
+            {
+                st.LastResult = st.History[st.History.Count - 1];
+            }
             if (st == null || st.LastResult == null)
             {
-                _subtitle.text = "No election has run yet.";
+                _subtitle.text = "No election data yet.";
+                var msg = _chartPanel.AddUIComponent<UILabel>();
+                msg.text =
+                    "No election has completed yet in this city.\n\n" +
+                    "Election statistics (vote breakdowns, grievance analysis, demographic splits)\n" +
+                    "are populated after the first election runs and then persist in your save.\n\n" +
+                    "You can call a snap election now from the main Politics panel if you\n" +
+                    "want to skip straight to the first vote.";
+                msg.textScale = 0.9f;
+                msg.autoSize = false;
+                msg.size = new Vector2(_chartPanel.width - 20f, 180f);
+                msg.relativePosition = new Vector3(10f, 40f);
+                msg.wordWrap = true;
+                msg.textColor = new Color32(220, 220, 225, 255);
                 return;
             }
 

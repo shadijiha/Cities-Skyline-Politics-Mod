@@ -411,6 +411,20 @@ namespace PoliticsMod
                 v => party.Modifiers.BudgetDeltaRoads = v);
             y = AddBudgetRow(y, "Industry",       party.Modifiers.BudgetDeltaIndustry,
                 v => party.Modifiers.BudgetDeltaIndustry = v);
+
+            // Expand the scrollable panel's virtual height so the scroll
+            // thumb can reach the bottom of the form. Without this the
+            // scrollbar stops at the panel's visible height (e.g. 660 px)
+            // and the last rows are clipped.
+            float contentHeight = y + 30f;
+            if (_formPanel != null)
+            {
+                _formPanel.scrollPadding = new RectOffset(0, 0, 0, (int)Mathf.Max(0f, contentHeight - _formPanel.height));
+            }
+            if (_formScroll != null)
+            {
+                _formScroll.maxValue = Mathf.Max(contentHeight, _formPanel != null ? _formPanel.height : 0f);
+            }
         }
 
         /// <summary>The vanilla policies that make sense as city-wide platform items.</summary>
