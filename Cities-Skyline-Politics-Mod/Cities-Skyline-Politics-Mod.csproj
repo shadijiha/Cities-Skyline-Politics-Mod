@@ -104,8 +104,39 @@
         </Reference>
     </ItemGroup>
     <ItemGroup>
-        <Compile Include="PoliticsMod.cs"/>
         <Compile Include="Properties\AssemblyInfo.cs"/>
+        <Compile Include="Chirper\PoliticsChirpMessage.cs"/>
+        <Compile Include="Config\Config.cs"/>
+        <Compile Include="Config\ModSettings.cs"/>
+        <Compile Include="Config\RuntimeConfig.cs"/>
+        <Compile Include="Config\VoterTraits.cs"/>
+        <Compile Include="Data\ElectionResult.cs"/>
+        <Compile Include="Data\Enums.cs"/>
+        <Compile Include="Data\PartyBlob.cs"/>
+        <Compile Include="Data\PartyCountRef.cs"/>
+        <Compile Include="Data\PartyDef.cs"/>
+        <Compile Include="Data\PolicyModifiers.cs"/>
+        <Compile Include="Data\PoliticsSaveBlob.cs"/>
+        <Compile Include="Data\PoliticsState.cs"/>
+        <Compile Include="Engine\CitizenManagerUtil.cs"/>
+        <Compile Include="Engine\ElectionEngine.cs"/>
+        <Compile Include="Engine\Grievances.cs"/>
+        <Compile Include="Harmony\BuildingAI_GetColor_Patch.cs"/>
+        <Compile Include="Harmony\HarmonyPatcher.cs"/>
+        <Compile Include="Mod\DebugFlags.cs"/>
+        <Compile Include="Mod\PoliticsLoadingExt.cs"/>
+        <Compile Include="Mod\PoliticsSerialization.cs"/>
+        <Compile Include="Mod\PoliticsThreading.cs"/>
+        <Compile Include="Mod\PoliticsUserMod.cs"/>
+        <Compile Include="UI\ElectionStatsPanel.cs"/>
+        <Compile Include="UI\HemicycleView.cs"/>
+        <Compile Include="UI\PartyEditorPanel.cs"/>
+        <Compile Include="UI\PartyLegendRow.cs"/>
+        <Compile Include="UI\PoliticsInfoViewButton.cs"/>
+        <Compile Include="UI\PoliticsOverlay.cs"/>
+        <Compile Include="UI\PoliticsPanel.cs"/>
+        <Compile Include="UI\UIHelpers.cs"/>
+        <Compile Include="UI\VoterTraitsPanel.cs"/>
     </ItemGroup>
     <ItemGroup>
       <None Include="packages.config" />
