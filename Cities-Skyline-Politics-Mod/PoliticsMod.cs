@@ -1,5 +1,5 @@
 // ============================================================================
-//  PoliticsMod.cs  —  Cities: Skylines 1 Politics & Elections Mod (single-file)
+//  PoliticsMod.cs  -  Cities: Skylines 1 Politics & Elections Mod (single-file)
 // ----------------------------------------------------------------------------
 //  Features
 //    * 6 configurable parties (ideology vector + color + platform).
@@ -37,7 +37,7 @@ using UnityEngine;
 namespace PoliticsMod
 {
     // ========================================================================
-    //  CONFIG — edit these to tune the mod without touching logic.
+    //  CONFIG - edit these to tune the mod without touching logic.
     // ========================================================================
     public static class Config
     {
@@ -64,7 +64,7 @@ namespace PoliticsMod
             }
         }
 
-        /// <summary>Half-plus-one — minimum seats to form a ruling coalition.</summary>
+        /// <summary>Half-plus-one - minimum seats to form a ruling coalition.</summary>
         public static int MajorityThreshold
         {
             get { return (ParliamentSeats / 2) + 1; }
@@ -75,7 +75,7 @@ namespace PoliticsMod
         // values used by the simulation live in RuntimeConfig and are editable
         // via the in-game panel and persisted in the savegame.
         public const float DefaultTermLengthDays         = 365f; // in-game days between elections (1 year)
-        public const float DefaultCampaignLengthDays     = 30f;  // campaign duration before voting day
+        public const float DefaultCampaignLengthDays     = 7f;   // campaign duration before voting day
         public const float DefaultReElectionCooldownDays = 14f;  // pause after failed coalition
         public const int   MaxCoalitionPartners          = 4;    // coalition cannot exceed this many parties
 
@@ -86,7 +86,7 @@ namespace PoliticsMod
         public const int   VoterSampleSize          = 5000;  // citizens sampled per election (perf)
 
         // -- UI --------------------------------------------------------------
-        public const KeyCode TogglePanelKey         = KeyCode.P;  // Ctrl+P opens panel
+        public const KeyCode DefaultTogglePanelKey = KeyCode.P;  // default: Ctrl+P opens panel
         public const float   NotificationDurationS  = 8f;
 
         // -- Info-view overlay ----------------------------------------------
@@ -280,15 +280,106 @@ namespace PoliticsMod
     }
 
     // ========================================================================
-    //  RUNTIME CONFIG — editable in-game via the politics panel, persisted in
+    //  RUNTIME CONFIG - editable in-game via the politics panel, persisted in
     //  savegames. Use these instead of the Default* constants when reading
     //  election timings at simulation time.
     // ========================================================================
+    // ========================================================================
+    //  MOD SETTINGS - persisted across saves in an XML file in
+    //  %LOCALAPPDATA%\Colossal Order\Cities_Skylines\ModSettings\PoliticsMod.xml.
+    //  Things here are user preferences (hotkey, debug toggle) as opposed
+    //  to per-city state (which lives in the savegame).
+    // ========================================================================
+    public static class ModSettings
+    {
+        private static string SettingsPath
+        {
+            get
+            {
+                string baseDir = ColossalFramework.IO.DataLocation.localApplicationData;
+                return System.IO.Path.Combine(
+                    System.IO.Path.Combine(baseDir, "ModSettings"),
+                    "PoliticsMod.xml");
+            }
+        }
+
+        public static void Load()
+        {
+            try
+            {
+                string path = SettingsPath;
+                if (!System.IO.File.Exists(path)) return;
+                var doc = new System.Xml.XmlDocument();
+                doc.Load(path);
+                var root = doc.DocumentElement;
+                if (root == null) return;
+                foreach (System.Xml.XmlNode n in root.ChildNodes)
+                {
+                    if (n.NodeType != System.Xml.XmlNodeType.Element) continue;
+                    string k = n.Name;
+                    string v = n.InnerText ?? "";
+                    switch (k)
+                    {
+                        case "TogglePanelKey":
+                            {
+                                try { RuntimeConfig.TogglePanelKey = (KeyCode)Enum.Parse(typeof(KeyCode), v); }
+                                catch { }
+                                break;
+                            }
+                        case "TogglePanelRequireCtrl":
+                            RuntimeConfig.TogglePanelRequireCtrl = (v == "true" || v == "True");
+                            break;
+                        case "VerboseLogging":
+                            DebugFlags.Verbose = (v == "true" || v == "True");
+                            break;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning(Config.LogPrefix + "Failed to load mod settings: " + e.Message);
+            }
+        }
+
+        public static void Save()
+        {
+            try
+            {
+                string path = SettingsPath;
+                string dir = System.IO.Path.GetDirectoryName(path);
+                if (!System.IO.Directory.Exists(dir)) System.IO.Directory.CreateDirectory(dir);
+                var doc = new System.Xml.XmlDocument();
+                var root = doc.CreateElement("PoliticsModSettings");
+                doc.AppendChild(root);
+                AppendNode(doc, root, "TogglePanelKey",        RuntimeConfig.TogglePanelKey.ToString());
+                AppendNode(doc, root, "TogglePanelRequireCtrl",RuntimeConfig.TogglePanelRequireCtrl ? "true" : "false");
+                AppendNode(doc, root, "VerboseLogging",        DebugFlags.Verbose ? "true" : "false");
+                doc.Save(path);
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning(Config.LogPrefix + "Failed to save mod settings: " + e.Message);
+            }
+        }
+
+        private static void AppendNode(System.Xml.XmlDocument doc, System.Xml.XmlElement parent, string name, string value)
+        {
+            var el = doc.CreateElement(name);
+            el.InnerText = value;
+            parent.AppendChild(el);
+        }
+    }
+
     public static class RuntimeConfig
     {
         public static float TermLengthDays         = Config.DefaultTermLengthDays;
         public static float CampaignLengthDays     = Config.DefaultCampaignLengthDays;
         public static float ReElectionCooldownDays = Config.DefaultReElectionCooldownDays;
+
+        // Hotkey that toggles the main Politics panel.
+        // RequireCtrl = true means the user must hold Ctrl + key.
+        public static KeyCode TogglePanelKey = Config.DefaultTogglePanelKey;
+        public static bool    TogglePanelRequireCtrl = true;
 
         // Hard bounds so sliders stay sane. Change only if you need longer/shorter.
         public const float MinTerm     = 7f;    public const float MaxTerm     = 1825f; // 1 week .. 5 years
@@ -307,7 +398,7 @@ namespace PoliticsMod
     }
 
     // ========================================================================
-    //  VOTER TRAITS — how citizen demographics bias voting on the economic
+    //  VOTER TRAITS - how citizen demographics bias voting on the economic
     //  axis (-1 left .. +1 right). Editable in-game and persisted in save.
     //
     //  Defaults are chosen to roughly match the previous hardcoded DecideVote
@@ -413,7 +504,7 @@ namespace PoliticsMod
         // Grievance.None captures "pure ideology" votes.
         public int[] VotesByGrievance = new int[9];
 
-        // v6: demographic cross-tabs — votes by (bucket, party).
+        // v6: demographic cross-tabs - votes by (bucket, party).
         // Age buckets: 0=Young, 1=Adult, 2=Senior (children/teens don't vote).
         public int[,] VotesByAgeParty;
         // Education: 0=Uneducated, 1=Educated, 2=WellEducated, 3=HighlyEducated.
@@ -480,7 +571,7 @@ namespace PoliticsMod
             CoalitionPartyIds = new List<int>(c);
             for (int i = 0; i < c; i++) CoalitionPartyIds.Add(s.ReadInt32());
             for (int i = 0; i < n; i++) ApprovalByParty[i]  = s.ReadInt32();
-            // v5 tail (optional — old saves don't have it)
+            // v5 tail (optional - old saves don't have it)
             if (s.version >= 5)
             {
                 int gn = s.ReadInt32();
@@ -492,7 +583,7 @@ namespace PoliticsMod
                 VotesByGrievance = new int[9];
             }
 
-            // v6 tail — demographic cross-tabs
+            // v6 tail - demographic cross-tabs
             if (s.version >= 6)
             {
                 VotesByAgeParty    = ReadMatrix(s);
@@ -517,7 +608,7 @@ namespace PoliticsMod
     }
 
     // ========================================================================
-    //  STATE — central singleton holding the live simulation state.
+    //  STATE - central singleton holding the live simulation state.
     // ========================================================================
     public enum ElectionPhase
     {
@@ -526,7 +617,7 @@ namespace PoliticsMod
         Voting,         // voting day (instant tally)
         Forming,        // coalition negotiations
         Governing,      // coalition in place, governing
-        Failed          // no coalition possible — cooldown before re-election
+        Failed          // no coalition possible - cooldown before re-election
     }
 
     public enum OverlayMode
@@ -561,7 +652,7 @@ namespace PoliticsMod
         // History
         public List<ElectionResult> History = new List<ElectionResult>();
 
-        // Policies currently applied by the coalition — so we can revert on coalition change.
+        // Policies currently applied by the coalition - so we can revert on coalition change.
         public List<DistrictPolicies.Policies> AppliedVanillaPolicies = new List<DistrictPolicies.Policies>();
         public bool PoliciesApplied;
 
@@ -608,6 +699,7 @@ namespace PoliticsMod
         public void OnEnabled()
         {
             Log("OnEnabled");
+            ModSettings.Load();
             HarmonyPatcher.PatchAll();
         }
 
@@ -619,14 +711,57 @@ namespace PoliticsMod
 
         public void OnSettingsUI(UIHelperBase helper)
         {
-            // Minimal options UI — most tuning lives in Config at top of file.
             var group = helper.AddGroup("Politics & Elections");
-            group.AddCheckbox("Enable debug logging", DebugFlags.Verbose, v => DebugFlags.Verbose = v);
-            group.AddButton("Force election now", () => {
+            group.AddCheckbox("Enable debug logging", DebugFlags.Verbose, v =>
+            {
+                DebugFlags.Verbose = v;
+                ModSettings.Save();
+            });
+
+            // --- Panel toggle hotkey ------------------------------------
+            var keyGroup = helper.AddGroup("Panel toggle hotkey");
+
+            // Pre-curated list of sensible hotkey candidates (single letters,
+            // F-keys, and a couple of punctuation keys). Most people won't
+            // want to bind something weird.
+            var choices = new List<KeyCode>();
+            for (KeyCode k = KeyCode.A; k <= KeyCode.Z; k++) choices.Add(k);
+            for (KeyCode k = KeyCode.F1; k <= KeyCode.F12; k++) choices.Add(k);
+            choices.Add(KeyCode.BackQuote);
+            choices.Add(KeyCode.Tab);
+
+            string[] labels = new string[choices.Count];
+            int selected = 0;
+            for (int i = 0; i < choices.Count; i++)
+            {
+                labels[i] = choices[i].ToString();
+                if (choices[i] == RuntimeConfig.TogglePanelKey) selected = i;
+            }
+
+            keyGroup.AddDropdown("Hotkey", labels, selected, v =>
+            {
+                if (v >= 0 && v < choices.Count)
+                {
+                    RuntimeConfig.TogglePanelKey = choices[v];
+                    ModSettings.Save();
+                }
+            });
+
+            keyGroup.AddCheckbox("Require Ctrl modifier",
+                RuntimeConfig.TogglePanelRequireCtrl,
+                v =>
+                {
+                    RuntimeConfig.TogglePanelRequireCtrl = v;
+                    ModSettings.Save();
+                });
+
+            // --- Utility buttons ----------------------------------------
+            var utilGroup = helper.AddGroup("Utilities");
+            utilGroup.AddButton("Force election now", () => {
                 if (PoliticsState.Instance != null && PoliticsState.Instance.Initialized)
                     ElectionEngine.TriggerCampaign(force: true);
             });
-            group.AddButton("Reset political state", () => {
+            utilGroup.AddButton("Reset political state", () => {
                 if (PoliticsState.Instance != null)
                 {
                     PoliticsState.Instance.History.Clear();
@@ -653,7 +788,7 @@ namespace PoliticsMod
     }
 
     // ========================================================================
-    //  UI HELPERS — reusable bits (draggable windows, etc.)
+    //  UI HELPERS - reusable bits (draggable windows, etc.)
     // ========================================================================
     public static class UIHelpers
     {
@@ -676,7 +811,7 @@ namespace PoliticsMod
     }
 
     // ========================================================================
-    //  HARMONY PATCHER — tints buildings natively when overlay is active.
+    //  HARMONY PATCHER - tints buildings natively when overlay is active.
     //
     //  We use a BuildingAI.GetColor prefix patch. When our overlay mode is
     //  something other than Off, we compute the color for residential buildings
@@ -686,7 +821,7 @@ namespace PoliticsMod
     //  The patch is only effective when:
     //    * CitiesHarmony is installed and loaded (provides 0Harmony.dll)
     //    * The overlay is enabled
-    //    * The InfoManager is in a neutral mode (None) — otherwise we defer to
+    //    * The InfoManager is in a neutral mode (None) - otherwise we defer to
     //      the vanilla info view so Education/Crime/etc. still work.
     // ========================================================================
     public static class HarmonyPatcher
@@ -708,7 +843,7 @@ namespace PoliticsMod
 
                 // BuildingAI.GetColor is virtual and OVERRIDDEN in many subclasses
                 // (ResidentialBuildingAI, LowResidentialBuildingAI, etc.). A
-                // patch on the base is NOT inherited — we must patch each
+                // patch on the base is NOT inherited - we must patch each
                 // subclass method individually.
                 var prefix = typeof(BuildingAI_GetColor_Patch).GetMethod("Prefix",
                     BindingFlags.Public | BindingFlags.Static);
@@ -791,7 +926,7 @@ namespace PoliticsMod
         ///
         /// To get the full info-view experience (dimmed other buildings, legend
         /// panel, etc.), we use a three-pronged approach:
-        ///   1. SetCurrentMode(Density, Default)  — flips the engine state
+        ///   1. SetCurrentMode(Density, Default)  - flips the engine state
         ///   2. Find and "click" the vanilla Population info-view button if
         ///      we can locate it, to trigger the UI chrome
         ///   3. Fallback: directly toggle the info-view panel components
@@ -849,7 +984,7 @@ namespace PoliticsMod
                     var infoPanel = view.FindUIComponent("InfoViewsPanel");
                     if (infoPanel != null)
                     {
-                        // Not opening/closing the panel itself — just making sure
+                        // Not opening/closing the panel itself - just making sure
                         // the info mode is live. The panel chrome follows.
                         PoliticsUserMod.Log("InfoViewsPanel located (" + infoPanel.name + ")");
                     }
@@ -904,7 +1039,7 @@ namespace PoliticsMod
 
             // Neutral "no data" color for residential buildings that have no
             // voter data yet (built after last election, not sampled, etc.).
-            // This keeps the info-view consistent — no vanilla population
+            // This keeps the info-view consistent - no vanilla population
             // colors leaking through.
             Color noData = new Color(0.35f, 0.35f, 0.4f, 1f);
 
@@ -918,7 +1053,7 @@ namespace PoliticsMod
                     if (pid >= PartyCountRef.Value)
                     {
                         __result = noData;
-                        return false; // no data — show neutral
+                        return false; // no data - show neutral
                     }
                     c = (Color)Config.Parties[pid].Color;
                     show = true;
@@ -954,7 +1089,7 @@ namespace PoliticsMod
     }
 
     // ========================================================================
-    //  LOADING EXTENSION — wires everything up when a city loads.
+    //  LOADING EXTENSION - wires everything up when a city loads.
     // ========================================================================
     public class PoliticsLoadingExt : LoadingExtensionBase
     {
@@ -1021,7 +1156,7 @@ namespace PoliticsMod
     }
 
     // ========================================================================
-    //  SERIALIZABLE DATA EXTENSION — persists political state in savegames.
+    //  SERIALIZABLE DATA EXTENSION - persists political state in savegames.
     // ========================================================================
     public class PoliticsSerialization : SerializableDataExtensionBase
     {
@@ -1108,7 +1243,7 @@ namespace PoliticsMod
         // v3: persisted party list (overrides Config.Parties defaults)
         public List<PartyBlob> Parties = new List<PartyBlob>();
         // v4: voter trait biases
-        public float[] VoterBiases; // 14 values in fixed order — see ApplyToTraits / CaptureTraits
+        public float[] VoterBiases; // 14 values in fixed order - see ApplyToTraits / CaptureTraits
         // v6: UI preferences
         public bool MinimalChirps;
 
@@ -1200,7 +1335,7 @@ namespace PoliticsMod
                     st.AppliedVanillaPolicies.Add((DistrictPolicies.Policies)i);
 
             // Push persisted runtime config back into RuntimeConfig (only if we
-            // actually loaded values, i.e. v2+ saves — otherwise leave defaults).
+            // actually loaded values, i.e. v2+ saves - otherwise leave defaults).
             if (RcTermLengthDays     > 0f) RuntimeConfig.TermLengthDays         = RcTermLengthDays;
             if (RcCampaignLengthDays > 0f) RuntimeConfig.CampaignLengthDays     = RcCampaignLengthDays;
             if (RcReElectionCooldownDays >= 0f) RuntimeConfig.ReElectionCooldownDays = RcReElectionCooldownDays;
@@ -1387,7 +1522,7 @@ namespace PoliticsMod
         public void AfterDeserialize(DataSerializer s) { }
     }
 
-    /// <summary>Serializable shape for a PartyDef — persisted in savegame (v3+).</summary>
+    /// <summary>Serializable shape for a PartyDef - persisted in savegame (v3+).</summary>
     public class PartyBlob : IDataContainer
     {
         public int Id;
@@ -1517,7 +1652,7 @@ namespace PoliticsMod
     }
 
     // ========================================================================
-    //  THREADING EXTENSION — drives the simulation (timer + campaign drift).
+    //  THREADING EXTENSION - drives the simulation (timer + campaign drift).
     // ========================================================================
     public class PoliticsThreading : ThreadingExtensionBase
     {
@@ -1613,7 +1748,7 @@ namespace PoliticsMod
                         ElectionEngine.DeficitWeeks = 0;
                     }
                 }
-                catch { /* ignore — early frame before managers are ready */ }
+                catch { /* ignore - early frame before managers are ready */ }
             }
             // Maybe post a citizen deficit chirp
             if (ElectionEngine.DeficitWeeks > 0 &&
@@ -1660,7 +1795,7 @@ namespace PoliticsMod
     }
 
     // ========================================================================
-    //  GRIEVANCES — issues a citizen cares about, derived from real game state.
+    //  GRIEVANCES - issues a citizen cares about, derived from real game state.
     //  A citizen's grievance set steers their vote toward parties that offer
     //  remedies (tax cuts, budget boosts, etc.).
     // ========================================================================
@@ -1741,7 +1876,7 @@ namespace PoliticsMod
             catch { }
 
             // NOTE: Pollution, NoiseOrTrash, and LowLandValue grievances are
-            // currently disabled — my previous density-based proxies were too
+            // currently disabled - my previous density-based proxies were too
             // aggressive and fired on almost every urban citizen. A proper
             // implementation would read Building.m_problems via its
             // ProblemStruct accessor, but that API varies across CS1 builds.
@@ -1828,7 +1963,7 @@ namespace PoliticsMod
     }
 
     // ========================================================================
-    //  ELECTION ENGINE — voter simulation, coalition formation, policy apply.
+    //  ELECTION ENGINE - voter simulation, coalition formation, policy apply.
     // ========================================================================
     public static class ElectionEngine
     {
@@ -1875,10 +2010,16 @@ namespace PoliticsMod
                 float u = 1f / PartyCountRef.Value;
                 for (int i = 0; i < st.CurrentSupport.Length; i++) st.CurrentSupport[i] = u;
             }
-            ShowToast("Campaign begins — elections in " + (int)RuntimeConfig.CampaignLengthDays + " days");
+            int days = (int)RuntimeConfig.CampaignLengthDays;
+            string toastMsg = force
+                ? "Snap election called! Campaign runs for " + days + " days."
+                : "Campaign begins - elections in " + days + " days";
+            ShowToast(toastMsg);
             // Chirper announcement from a generic "City News" account
-            PostChirp("City News", "📢 Campaign season begins! Elections in " +
-                (int)RuntimeConfig.CampaignLengthDays + " days. #Vote", 1u);
+            string newsMsg = force
+                ? "Snap election called! Campaign runs for " + days + " days. #Vote"
+                : "Campaign season begins! Elections in " + days + " days. #Vote";
+            PostChirp("City News", newsMsg, 1u);
             // Each party chirps a slogan (suppressed in MinimalChirps mode)
             if (!DebugFlags.MinimalChirps)
             {
@@ -1933,7 +2074,7 @@ namespace PoliticsMod
             string[] leftDefeat = new[]
             {
                 "We fight on. The struggle continues. #" + p.ShortName,
-                "This is not the end — it's a beginning. #" + p.ShortName,
+                "This is not the end - it's a beginning. #" + p.ShortName,
             };
             string[] centerDefeat = new[]
             {
@@ -1985,7 +2126,7 @@ namespace PoliticsMod
             int sampled = RunFullElectionSample();
             if (sampled == 0)
             {
-                PoliticsUserMod.Log("No voters sampled — aborting election.");
+                PoliticsUserMod.Log("No voters sampled - aborting election.");
                 st.Phase = ElectionPhase.Idle;
                 st.DaysSinceLastElection = 0f;
                 return;
@@ -2080,7 +2221,7 @@ namespace PoliticsMod
 
                 // Chirper announcements: news (always) + per-party reactions (suppressed in MinimalChirps)
                 PostChirp("City News",
-                    "🏛 " + Config.Parties[chosen[0]].ShortName + " wins. Coalition formed with " +
+                    "" + Config.Parties[chosen[0]].ShortName + " wins. Coalition formed with " +
                     (chosen.Count - 1) + " partner(s). Turnout " + (int)(result.Turnout * 100) + "%. #Election",
                     1u);
                 if (!DebugFlags.MinimalChirps)
@@ -2103,7 +2244,7 @@ namespace PoliticsMod
                 ShowToast("No coalition could be formed. Snap re-election in " +
                           (int)RuntimeConfig.ReElectionCooldownDays + " days.");
                 PostChirp("City News",
-                    "⚠ Coalition talks collapsed. Snap re-election in " +
+                    "Coalition talks collapsed. Snap re-election in " +
                     (int)RuntimeConfig.ReElectionCooldownDays + " days. #CrisisMode",
                     1u);
             }
@@ -2180,13 +2321,13 @@ namespace PoliticsMod
             uint bBuf = bm.m_buildings.m_size;
             if (bBuf == 0) return 0;
 
-            // Per-building tallies (compact — residential buildings only)
+            // Per-building tallies (compact - residential buildings only)
             var perBuildingTally  = new int[bBuf, PartyCountRef.Value];
             var perBuildingVoters = new int[bBuf];
             var perBuildingHappy  = new int[bBuf];
             var overallTally      = new float[PartyCountRef.Value];
             int totalSampled = 0;
-            // Grievance tally for the current election — indexed by (int)Grievance.
+            // Grievance tally for the current election - indexed by (int)Grievance.
             // Size = 9 matches the Grievance enum (None + 8 concrete values).
             var grievanceTally = new int[9];
             // Demographic cross-tabs
@@ -2198,7 +2339,7 @@ namespace PoliticsMod
             // Walk EVERY residential building and sample its citizen units.
             // This gives ~100% per-building coverage unlike random citizen sampling.
             // On 150k-citizen cities this runs once per election (~365 game days)
-            // and takes <100ms — acceptable.
+            // and takes <100ms - acceptable.
             for (int b = 1; b < bBuf; b++)
             {
                 var building = bm.m_buildings.m_buffer[b];
@@ -2322,7 +2463,7 @@ namespace PoliticsMod
 
         private static int BuildingResidentCount(Building b)
         {
-            // Approximate — BuildingAI.CalculateHomeCount would be exact but varies by type.
+            // Approximate - BuildingAI.CalculateHomeCount would be exact but varies by type.
             // Household count inferred via Citizen unit walk would be more accurate but slower.
             // Use the building's current citizen count summary.
             var info = b.Info;
@@ -2337,9 +2478,9 @@ namespace PoliticsMod
         /// Decide which party a citizen votes for.
         /// Returns -1 for children/teens (non-voters).
         /// Combines:
-        ///   * Ideology (from VoterTraits "nudges" + party.Ideology) — the
+        ///   * Ideology (from VoterTraits "nudges" + party.Ideology) - the
         ///     baseline leaning.
-        ///   * Grievances (real-game-state complaints) — strong pull toward
+        ///   * Grievances (real-game-state complaints) - strong pull toward
         ///     parties whose platform addresses the grievance.
         ///   * Random noise for variety.
         /// Sets <paramref name="reason"/> to the dominant grievance that
@@ -2379,7 +2520,7 @@ namespace PoliticsMod
             else if (ageGroup == Citizen.AgeGroup.Adult)  econ += VoterTraits.BiasAdult;
             else if (ageGroup == Citizen.AgeGroup.Senior) econ += VoterTraits.BiasSenior;
             if (sick) econ += VoterTraits.BiasSick;
-            // Deficit pressure — the city is losing money → voters drift right
+            // Deficit pressure - the city is losing money → voters drift right
             // (lower taxes, business-friendly). Strength 0..0.35 based on how
             // many consecutive weeks the budget has been negative.
             econ += DeficitPressure;
@@ -2390,7 +2531,7 @@ namespace PoliticsMod
             float soc  = Mathf.Clamp(ageF * 1.2f - 0.4f - (education * 0.15f), -1f, 1f);
             float gov  = Mathf.Clamp((_rng.Next(0, 100) - 50) / 100f, -1f, 1f);
 
-            // Small random jitter (half the old VoterNoise magnitude — rest of
+            // Small random jitter (half the old VoterNoise magnitude - rest of
             // the randomness lives in the combined-score noise step below).
             econ += ((float)_rng.NextDouble() - 0.5f) * Config.VoterNoise;
             soc  += ((float)_rng.NextDouble() - 0.5f) * Config.VoterNoise;
@@ -2413,7 +2554,7 @@ namespace PoliticsMod
                 var party = Config.Parties[i];
 
                 // Ideology fit: 1 - normalized_distance. Max distance in a
-                // [-1,1]^3 cube is sqrt(12) ≈ 3.46 — normalize by that.
+                // [-1,1]^3 cube is sqrt(12) ≈ 3.46 - normalize by that.
                 float dist = (party.Ideology - voterPoint).magnitude;
                 float ideologyFit = Mathf.Clamp01(1f - dist / 3.46f);
 
@@ -2518,7 +2659,7 @@ namespace PoliticsMod
                         // Record it so the next revert knows about it.
                         // Only announce if it was NOT in the previous coalition's set
                         // (i.e., it was set manually by the player before the mod
-                        // ever touched it — first-time enactment from our POV).
+                        // ever touched it - first-time enactment from our POV).
                         st.AppliedVanillaPolicies.Add(p);
                         if (!prevApplied.Contains(p))
                         {
@@ -2712,7 +2853,7 @@ namespace PoliticsMod
 
             int billNo = st.NextBillNumber++;
             string text = string.Format(
-                "🏛 Parliament votes {0}-{1} to REPEAL bill C-{2}: An Act to end {3}.",
+                "Parliament votes {0}-{1} to REPEAL bill C-{2}: An Act to end {3}.",
                 yes, no, billNo, FormatPolicyTitle(policy));
             if (abstain > 0) text += "  (" + abstain + " abstentions)";
             PostChirp("City News", text, 42u);
@@ -2778,7 +2919,7 @@ namespace PoliticsMod
             }
             else
             {
-                // No platform supporter — use coalition center
+                // No platform supporter - use coalition center
                 foreach (var cid in st.CoalitionPartyIds) supCenter += Config.Parties[cid].Ideology;
                 if (st.CoalitionPartyIds.Count > 0) supCenter /= st.CoalitionPartyIds.Count;
             }
@@ -2827,10 +2968,10 @@ namespace PoliticsMod
             string passedOrFailed = yes > no ? "passes" : "REJECTS";
             // In practice the policy WAS enacted (we just called SetCityPolicy),
             // so the tally usually shows pass. If tally math produces a "fail"
-            // (rare — opposition has a big majority), we override the chirp text.
+            // (rare - opposition has a big majority), we override the chirp text.
             if (yes <= no)
             {
-                // Force the tally to squeak through — this is a post-hoc
+                // Force the tally to squeak through - this is a post-hoc
                 // narrative fit. Keep the enacted fact, adjust numbers.
                 int flip = (no - yes) + 1;
                 no      = Math.Max(0, no - flip);
@@ -2839,7 +2980,7 @@ namespace PoliticsMod
             }
 
             string chirp = string.Format(
-                "🏛 Parliament votes {0}-{1} to {2} bill C-{3}: An Act to {4}.",
+                "Parliament votes {0}-{1} to {2} bill C-{3}: An Act to {4}.",
                 yes, no, passedOrFailed, billNo, title);
             if (abstain > 0) chirp += "  ({0} abstentions)".Replace("{0}", abstain.ToString());
             PostChirp("City News", chirp, 42u);
@@ -2949,7 +3090,7 @@ namespace PoliticsMod
 
             int billNo = st.NextBillNumber++;
             string text = string.Format(
-                "🏛 Parliament votes {0}-{1} to pass bill C-{2} (Budget & Tax): An Act to {3}.",
+                "Parliament votes {0}-{1} to pass bill C-{2} (Budget & Tax): An Act to {3}.",
                 yes, no, billNo, sb.ToString());
             if (abstain > 0) text += "  (" + abstain + " abstentions)";
             PostChirp("City News", text, 43u);
@@ -3201,16 +3342,16 @@ namespace PoliticsMod
                 "My taxes are too high. Time for a change. " + tag,
                 "This government can't balance a budget. Voting right next time.",
                 "We need lower taxes and more jobs. " + tag,
-                "Running a city is like running a business — cut the waste.",
+                "Running a city is like running a business - cut the waste.",
                 "Another deficit? I'm done funding this. " + tag,
                 "Big spenders are bankrupting us. Switching my vote.",
                 "If my household ran like this, we'd be homeless.",
-                "Austerity now — or chaos later. " + tag,
+                "Austerity now - or chaos later. " + tag,
             };
 
             uint cid;
             string name = PickRandomCitizenName(out cid);
-            if (cid == 0u) return; // no real citizen found — skip; clicking a fake ID does nothing
+            if (cid == 0u) return; // no real citizen found - skip; clicking a fake ID does nothing
             string msg = pool[_rng.Next(0, pool.Length)];
             PostChirp(name, msg, cid);
         }
@@ -3276,7 +3417,7 @@ namespace PoliticsMod
     }
 
     // ========================================================================
-    //  CHIRPER MESSAGE — custom MessageBase subclass so our announcements
+    //  CHIRPER MESSAGE - custom MessageBase subclass so our announcements
     //  show up in the in-game Chirper feed (blue bird). See
     //  MessageManager.QueueMessage.
     // ========================================================================
@@ -3305,7 +3446,7 @@ namespace PoliticsMod
             var m = other as PoliticsChirpMessage;
             if (m == null) return false;
             // Same sender (by id) posting the same message → duplicate.
-            // Don't dedupe across different senders — two citizens can have
+            // Don't dedupe across different senders - two citizens can have
             // the same take, and we want each to be visible as its own chirp.
             return m._id == _id && (m._message ?? "") == (_message ?? "");
         }
@@ -3328,10 +3469,10 @@ namespace PoliticsMod
     }
 
     // ========================================================================
-    //  UI PANEL — bar chart, coalition, policies, term countdown.
+    //  UI PANEL - bar chart, coalition, policies, term countdown.
     // ========================================================================
     // ========================================================================
-    //  HEMICYCLE VIEW — semi-circular parliament seat visualization.
+    //  HEMICYCLE VIEW - semi-circular parliament seat visualization.
     //  Arranges N seats in concentric arcs and colors each by party.
     //  Coalition seats are drawn with a subtle outer glow (lighter variant).
     // ========================================================================
@@ -3541,7 +3682,7 @@ namespace PoliticsMod
     }
 
     // ========================================================================
-    //  PARTY LEGEND ROW — small compact horizontal stack of party swatches
+    //  PARTY LEGEND ROW - small compact horizontal stack of party swatches
     //  with seat counts, drawn underneath the hemicycle.
     // ========================================================================
     public class PartyLegendRow : UIPanel
@@ -3573,8 +3714,8 @@ namespace PoliticsMod
                 var p = Config.Parties[i];
                 int s = i < seats.Length ? seats[i] : 0;
                 bool inCoal = coalition != null && coalition.Contains(i);
-                // Coalition parties get a ★; non-coalition get a small ●.
-                string marker = inCoal ? "★" : "●";
+                // Coalition parties get a *; non-coalition get a small -.
+                string marker = inCoal ? "*" : "-";
                 string text = string.Format(
                     "<color #{0:X2}{1:X2}{2:X2}>{3}</color> {4} {5}",
                     p.Color.r, p.Color.g, p.Color.b, marker, p.ShortName, s);
@@ -3654,7 +3795,7 @@ namespace PoliticsMod
             _policiesLabel = AddUIComponent<UILabel>();
             _policiesLabel.textScale = 0.8f;
             _policiesLabel.relativePosition = new Vector3(15, 293);
-            // Single-line label — the list is truncated to avoid overflow.
+            // Single-line label - the list is truncated to avoid overflow.
             _policiesLabel.autoSize = false;
             _policiesLabel.size = new Vector2(width - 30, 18);
             _policiesLabel.clipChildren = true;
@@ -3832,10 +3973,15 @@ namespace PoliticsMod
         public override void Update()
         {
             base.Update();
-            // Hotkey: Ctrl+P toggles
-            if (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl))
+
+            // Hotkey toggle (configurable key; optionally requires Ctrl).
+            bool ctrlHeld = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
+            if (!RuntimeConfig.TogglePanelRequireCtrl || ctrlHeld)
             {
-                if (Input.GetKeyDown(Config.TogglePanelKey)) isVisible = !isVisible;
+                if (Input.GetKeyDown(RuntimeConfig.TogglePanelKey))
+                {
+                    isVisible = !isVisible;
+                }
             }
             if (!isVisible) return;
 
@@ -3869,7 +4015,7 @@ namespace PoliticsMod
                 _coalitionLabel.text = "Coalition: (none)";
             }
 
-            // Policies — single-line summary with truncation.
+            // Policies - single-line summary with truncation.
             if (st.AppliedVanillaPolicies != null && st.AppliedVanillaPolicies.Count > 0)
             {
                 const int maxShown = 4;
@@ -3920,7 +4066,7 @@ namespace PoliticsMod
     }
 
     // ========================================================================
-    //  INFO-VIEW OVERLAY — draws party/turnout/satisfaction dots over buildings.
+    //  INFO-VIEW OVERLAY - draws party/turnout/satisfaction dots over buildings.
     // ========================================================================
     public class PoliticsOverlay : MonoBehaviour
     {
@@ -3980,7 +4126,7 @@ namespace PoliticsMod
                 var s = new GUIStyle(GUI.skin.box);
                 s.normal.textColor = Color.yellow;
                 GUI.Box(new Rect(20f, 90f, 260f, 26f),
-                    "No election yet — call a snap election!", s);
+                    "No election yet - call a snap election!", s);
             }
         }
 
@@ -4044,7 +4190,7 @@ namespace PoliticsMod
     }
 
     // ========================================================================
-    //  INFO-VIEW BUTTON — standalone UI button sitting on screen, styled like
+    //  INFO-VIEW BUTTON - standalone UI button sitting on screen, styled like
     //  the vanilla Info View tab buttons. Clicking it cycles:
     //      Off → Party → Turnout → Satisfaction → Off
     //  Each cycle forces a building color refresh so the tint changes
@@ -4161,7 +4307,7 @@ namespace PoliticsMod
     }
 
     // ========================================================================
-    //  PARTY EDITOR PANEL — in-game editor to add/remove parties and edit
+    //  PARTY EDITOR PANEL - in-game editor to add/remove parties and edit
     //  name, color, ideology, policies, and modifiers. Opened via the
     //  "Manage Parties" button on the main politics panel.
     // ========================================================================
@@ -4191,7 +4337,7 @@ namespace PoliticsMod
         private UIPanel _listPanel;
         private UIButton[] _listButtons;
 
-        // Right-side detail form — a scrollable panel so tall forms fit.
+        // Right-side detail form - a scrollable panel so tall forms fit.
         private UIScrollablePanel _formPanel;
         private UIScrollbar _formScroll;
 
@@ -4329,7 +4475,7 @@ namespace PoliticsMod
                 b.textPadding = new RectOffset(28, 4, 8, 6);
                 b.textHorizontalAlignment = UIHorizontalAlignment.Left;
                 var p = Config.Parties[idx];
-                b.text = p.ShortName + " — " + p.FullName;
+                b.text = p.ShortName + " - " + p.FullName;
                 b.tooltip = p.FullName;
 
                 // Color swatch
@@ -4356,7 +4502,7 @@ namespace PoliticsMod
         {
             _selectedIdx = Mathf.Clamp(idx, 0, Config.Parties.Length - 1);
             RebuildList();
-            // Form rebuild hook — implemented in the next step.
+            // Form rebuild hook - implemented in the next step.
             RebuildForm();
         }
 
@@ -4411,7 +4557,7 @@ namespace PoliticsMod
 
             // --- Ideology sliders ---
             var header = _formPanel.AddUIComponent<UILabel>();
-            header.text = "Ideology (−1 … +1)";
+            header.text = "Ideology (-1 ... +1)";
             header.textScale = 0.95f;
             header.relativePosition = new Vector3(10, y);
             y += 24f;
@@ -4499,7 +4645,7 @@ namespace PoliticsMod
 
             // --- Tax modifiers ---
             var taxHdr = _formPanel.AddUIComponent<UILabel>();
-            taxHdr.text = "Tax deltas (pct points, −10 .. +10)";
+            taxHdr.text = "Tax deltas (pct points, -10 .. +10)";
             taxHdr.textScale = 0.9f;
             taxHdr.relativePosition = new Vector3(10, y);
             y += 22f;
@@ -4516,7 +4662,7 @@ namespace PoliticsMod
             y += 4f;
             // --- Budget modifiers ---
             var budHdr = _formPanel.AddUIComponent<UILabel>();
-            budHdr.text = "Budget deltas (pct points, −30 .. +30)";
+            budHdr.text = "Budget deltas (pct points, -30 .. +30)";
             budHdr.textScale = 0.9f;
             budHdr.relativePosition = new Vector3(10, y);
             y += 22f;
@@ -4559,7 +4705,7 @@ namespace PoliticsMod
             {
                 // Skip the implicit 0/"None" entry
                 if ((int)v == 0) continue;
-                // Skip combined flag masks (if any — names typically include "Mask" or "All")
+                // Skip combined flag masks (if any - names typically include "Mask" or "All")
                 var n = v.ToString();
                 if (n.IndexOf("Mask", StringComparison.OrdinalIgnoreCase) >= 0) continue;
                 if (n.Equals("All",  StringComparison.OrdinalIgnoreCase)) continue;
@@ -4583,7 +4729,7 @@ namespace PoliticsMod
         }
 
         /// <summary>
-        /// Build a single clickable policy "tile" — an icon + label styled like
+        /// Build a single clickable policy "tile" - an icon + label styled like
         /// the vanilla policy buttons, with a selected-state frame when the
         /// party supports this policy. Clicking toggles.
         /// </summary>
@@ -4604,7 +4750,7 @@ namespace PoliticsMod
             btn.text = "";
             btn.tooltip = FormatPolicyName(policy);
 
-            // Icon — use the vanilla "IconPolicy<Name>" sprite convention.
+            // Icon - use the vanilla "IconPolicy<Name>" sprite convention.
             var icon = btn.AddUIComponent<UISprite>();
             icon.size = new Vector2(size * 0.8f, size * 0.8f);
             icon.relativePosition = new Vector3((size - icon.width) / 2f,
@@ -4613,7 +4759,7 @@ namespace PoliticsMod
             icon.atlas = parent.GetUIView().defaultAtlas;
             icon.spriteName = spriteName;
 
-            // No label under the icon — would be too cramped at small sizes.
+            // No label under the icon - would be too cramped at small sizes.
             // The tooltip already shows the full policy name on hover.
 
             var capturedPolicy = policy;
@@ -4975,7 +5121,7 @@ namespace PoliticsMod
     }
 
     // ========================================================================
-    //  VOTER TRAITS PANEL — edit per-trait economic-axis biases with sliders.
+    //  VOTER TRAITS PANEL - edit per-trait economic-axis biases with sliders.
     // ========================================================================
     public class VoterTraitsPanel : UIPanel
     {
@@ -5021,7 +5167,7 @@ namespace PoliticsMod
         private void BuildUI()
         {
             var title = AddUIComponent<UILabel>();
-            title.text = "Voter Traits — Economic Axis Bias (−1 left … +1 right)";
+            title.text = "Voter Traits - Economic Axis Bias (-1 left ... +1 right)";
             title.textScale = 1.0f;
             title.relativePosition = new Vector3(15, 10);
 
@@ -5140,7 +5286,7 @@ namespace PoliticsMod
     }
 
     // ========================================================================
-    //  ELECTION STATS PANEL — bar chart of "why people voted" for the most
+    //  ELECTION STATS PANEL - bar chart of "why people voted" for the most
     //  recent election, driven by ElectionResult.VotesByGrievance.
     // ========================================================================
     public class ElectionStatsPanel : UIPanel
@@ -5264,7 +5410,7 @@ namespace PoliticsMod
             int[] tally = r.VotesByGrievance ?? new int[9];
             for (int i = 0; i < tally.Length; i++) total += tally[i];
             _subtitle.text = "Election " + r.Year + "-" + r.Month +
-                             " — " + total + " votes sampled  •  Turnout " + (int)(r.Turnout * 100) + "%";
+                             " - " + total + " votes sampled  •  Turnout " + (int)(r.Turnout * 100) + "%";
 
             float y = 0f;
             // --- Shared party legend (used by all demographic charts) ---
@@ -5391,7 +5537,7 @@ namespace PoliticsMod
             if (data == null)
             {
                 var msg = _chartPanel.AddUIComponent<UILabel>();
-                msg.text = "(no data — older save format)";
+                msg.text = "(no data - older save format)";
                 msg.textScale = 0.75f;
                 msg.textColor = new Color32(170, 170, 170, 255);
                 msg.relativePosition = new Vector3(10, y);
