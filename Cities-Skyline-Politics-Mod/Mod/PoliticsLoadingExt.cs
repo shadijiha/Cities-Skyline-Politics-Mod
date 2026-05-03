@@ -48,6 +48,10 @@ namespace PoliticsMod
             }
 
             st.Initialized = true;
+            PoliticsUserMod.Log("OnLevelLoaded: History=" + st.History.Count +
+                                ", LastResult=" + (st.LastResult == null ? "null" : "set") +
+                                ", Phase=" + st.Phase +
+                                ", Day=" + (int)st.DaysSinceLastElection);
 
             // Spawn UI.
             try
