@@ -56,7 +56,10 @@ namespace PoliticsMod
             isInteractive = true;
             relativePosition = new Vector3(120, 40);
             BuildUI();
-            // Visibility controlled by Toggle()
+            // Visibility controlled by Toggle().
+            // Populate the chart immediately so the first-open flow works
+            // even if Toggle's Refresh() call ran before Start built _chartPanel.
+            Refresh();
         }
 
         private UIScrollablePanel _scrollBody;
