@@ -122,7 +122,11 @@ namespace PoliticsMod
             st.CoalitionPartyIds = CoalitionPartyIds ?? new List<int>();
             st.History         = History ?? new List<ElectionResult>();
             st.PoliciesApplied = PoliciesApplied;
-            st.Overlay         = (OverlayMode)Overlay;
+            // Always start with the overlay off on load. The overlay is a
+            // view mode, not persistent political state, and waking up a save
+            // with buildings tinted by a view that isn't visibly engaged
+            // feels wrong.
+            st.Overlay         = OverlayMode.Off;
             st.FailedCooldownRemaining = FailedCooldownRemaining;
             st.AppliedVanillaPolicies.Clear();
             if (AppliedVanillaPolicies != null)
