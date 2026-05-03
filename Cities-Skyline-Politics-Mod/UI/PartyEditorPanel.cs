@@ -412,13 +412,18 @@ namespace PoliticsMod
             y = AddBudgetRow(y, "Industry",       party.Modifiers.BudgetDeltaIndustry,
                 v => party.Modifiers.BudgetDeltaIndustry = v);
 
-            // Tell the scrollbar how tall the content is so it can reach the
-            // bottom. Scrollable panel's auto-extent calculation sometimes
-            // stops at the visible height, clipping the last rows.
-            float contentHeight = y + 30f;
-            if (_formScroll != null && _formPanel != null)
+            // Add an invisible spacer child at the bottom of the form. The
+            // scrollable panel measures its content extent by its children's
+            // bounds, so placing a child past the last row forces the scroll
+            // range to extend that far.
+            if (_formPanel != null)
             {
-                _formScroll.maxValue = Mathf.Max(contentHeight, _formPanel.height);
+                var spacer = _formPanel.AddUIComponent<UIPanel>();
+                spacer.name = "FormBottomSpacer";
+                spacer.backgroundSprite = null;
+                spacer.color = new Color32(0, 0, 0, 0);
+                spacer.size = new Vector2(4f, 40f);
+                spacer.relativePosition = new Vector3(0f, y + 30f);
             }
         }
 
