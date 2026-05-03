@@ -59,7 +59,7 @@ namespace PoliticsMod
             isInteractive = true;
             relativePosition = new Vector3(180, 80);
             BuildUI();
-            isVisible = false;
+            // Visibility controlled by Toggle()
         }
 
         private void BuildUI()

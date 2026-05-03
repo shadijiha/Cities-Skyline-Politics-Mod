@@ -21,16 +21,14 @@ namespace PoliticsMod
     // ========================================================================
     public class PoliticsThreading : ThreadingExtensionBase
     {
-        // One in-game day = SIM_FRAMES_PER_DAY simulation frames.
-        // CS1's own day-night cycle uses 585 frames per "day" internally.
-        // Simulation frames ONLY advance while the game is unpaused, AND they
-        // advance proportional to the speed button (1x/2x/3x), so this
-        // automatically gives us:
-        //   * no progress while paused
-        //   * faster terms when the player speeds up the game
-        private const uint SIM_FRAMES_PER_DAY = 585;
-
-        private uint _lastFrameIndex = 0;
+        // We derive "days elapsed" from SimulationManager.m_currentGameTime
+        // (a DateTime that matches exactly what the in-game day-night HUD
+        // displays). This keeps our term counter in sync with the visible
+        // day bar regardless of CS1's internal frames-per-day constant.
+        //
+        // When paused, m_currentGameTime stops advancing, so we re-baseline
+        // on resume to avoid a huge jump.
+        private double _lastGameDays = -1.0;
         private bool _haveBaseline   = false;
         private float _daysSinceDeficitCheck = 0f;
 
@@ -49,24 +47,32 @@ namespace PoliticsMod
                 return;
             }
 
-            uint cur = simMgr.m_currentFrameIndex;
-            if (!_haveBaseline)
+            // Current in-game time expressed as a fractional day count.
+            double nowDays;
+            try
             {
-                _lastFrameIndex = cur;
-                _haveBaseline   = true;
+                nowDays = simMgr.m_currentGameTime.Ticks / (double)TimeSpan.TicksPerDay;
+            }
+            catch
+            {
                 return;
             }
 
-            // Compute frames elapsed since last tick (handles wrap just in case)
-            uint frameDelta = (cur >= _lastFrameIndex) ? (cur - _lastFrameIndex) : 0u;
-            _lastFrameIndex = cur;
-            if (frameDelta == 0u) return;
+            if (!_haveBaseline)
+            {
+                _lastGameDays = nowDays;
+                _haveBaseline = true;
+                return;
+            }
 
-            // Clamp absurd deltas (e.g. after loading)
-            if (frameDelta > SIM_FRAMES_PER_DAY * 30u) frameDelta = 0u;
+            double delta = nowDays - _lastGameDays;
+            _lastGameDays = nowDays;
 
-            float dayDelta = frameDelta / (float)SIM_FRAMES_PER_DAY;
-            if (dayDelta <= 0f) return;
+            // Guard against negatives (e.g., scenario reset) and huge spikes
+            // (e.g., save loading mid-frame).
+            if (delta <= 0 || delta > 30) return;
+
+            float dayDelta = (float)delta;
 
             // Only run politics if city has grown enough
             int population = CitizenManagerUtil.GetPopulation();

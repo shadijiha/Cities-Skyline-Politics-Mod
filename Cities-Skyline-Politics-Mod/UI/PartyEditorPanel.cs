@@ -70,7 +70,9 @@ namespace PoliticsMod
             isInteractive = true;
             relativePosition = new Vector3(120, 30);
             BuildUI();
-            isVisible = false;
+            // Do NOT set isVisible here — the caller (Toggle) controls it.
+            // Setting isVisible = false would fight with the Toggle that
+            // triggered this Start() in the first place.
         }
 
         private void BuildUI()

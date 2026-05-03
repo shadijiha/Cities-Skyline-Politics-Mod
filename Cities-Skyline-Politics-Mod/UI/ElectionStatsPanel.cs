@@ -56,7 +56,7 @@ namespace PoliticsMod
             isInteractive = true;
             relativePosition = new Vector3(120, 40);
             BuildUI();
-            isVisible = false;
+            // Visibility controlled by Toggle()
         }
 
         private UIScrollablePanel _scrollBody;
