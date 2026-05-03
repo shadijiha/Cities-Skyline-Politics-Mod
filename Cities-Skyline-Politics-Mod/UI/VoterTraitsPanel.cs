@@ -53,7 +53,7 @@ namespace PoliticsMod
         {
             base.Start();
             width = 560;
-            height = 620;
+            height = 720;
             backgroundSprite = "MenuPanel2";
             canFocus = true;
             isInteractive = true;
@@ -81,12 +81,23 @@ namespace PoliticsMod
             close.eventClick += (c, p) => { isVisible = false; };
 
             var note = AddUIComponent<UILabel>();
-            note.text = "Only Young, Adult, and Senior citizens vote.";
-            note.textScale = 0.75f;
-            note.textColor = new Color32(180, 180, 180, 255);
+            note.text =
+                "Each slider nudges how a given citizen trait leans on the economic axis.\n" +
+                "Negative values (left) push those voters toward LEFT-leaning parties\n" +
+                "(high taxes, strong services, redistribution). Positive values (right)\n" +
+                "push toward RIGHT-leaning parties (low taxes, business-friendly,\n" +
+                "smaller government). Zero means the trait has no effect.\n" +
+                "\n" +
+                "Only Young, Adult, and Senior citizens vote. These are nudges, not\n" +
+                "hard rules: grievances and ideology distance also affect the final vote.";
+            note.textScale = 0.72f;
+            note.textColor = new Color32(190, 190, 195, 255);
             note.relativePosition = new Vector3(15, 34);
+            note.autoSize = false;
+            note.wordWrap = true;
+            note.size = new Vector2(width - 30, 110);
 
-            float y = 60f;
+            float y = 160f;
             y = AddSection("Education", y);
             y = AddRow(y, "Uneducated",        () => VoterTraits.BiasEduUneducated,     v => VoterTraits.BiasEduUneducated     = v);
             y = AddRow(y, "Educated",          () => VoterTraits.BiasEduEducated,       v => VoterTraits.BiasEduEducated       = v);
