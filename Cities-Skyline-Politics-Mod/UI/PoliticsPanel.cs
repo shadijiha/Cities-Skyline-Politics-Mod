@@ -41,6 +41,11 @@ namespace PoliticsMod
         private UILabel _phaseLabel;
         private UILabel _coalitionLabel;
         private UILabel _policiesLabel;
+        private UIPanel _policiesIconRow;
+        // Hash of the currently-rendered policy list, so the icon row is
+        // only rebuilt when the list actually changes (Update() runs every
+        // frame and we don't want to destroy/recreate UI that often).
+        private int _lastPoliciesHash = -1;
         private HemicycleView _hemi;
         private PartyLegendRow _legend;
         private UIButton _overlayBtn;
@@ -95,23 +100,44 @@ namespace PoliticsMod
             _hemi = AddUIComponent<HemicycleView>();
             _hemi.relativePosition = new Vector3(15, 70);
             _hemi.size = new Vector2(width - 30, 170);
+            _hemi.tooltip =
+                "Parliament size scales with your population:\n"
+                + "1 seat per " + Config.SeatsPerCitizens + " citizens "
+                + "(min " + Config.MinParliamentSeats
+                + ", max " + Config.MaxParliamentSeats + ").";
 
             _legend = AddUIComponent<PartyLegendRow>();
             _legend.relativePosition = new Vector3(15, 70 + 170 + 2);
-            _legend.size = new Vector2(width - 30, 22);
+            float legendH = PartyLegendRow.HeightFor(PartyCountRef.Value);
+            _legend.size = new Vector2(width - 30, legendH);
             _legend.Build(PartyCountRef.Value);
+
+            // Coalition/policies labels used to live at hardcoded y=270 and
+            // y=293, which assumed a 22px single-row legend. When the legend
+            // wraps to a second row (7+ parties) we shift everything below
+            // down by the extra height so the labels aren't overlapped.
+            float extraLegend = Mathf.Max(0f, legendH - 22f);
 
             _coalitionLabel = AddUIComponent<UILabel>();
             _coalitionLabel.textScale = 0.85f;
-            _coalitionLabel.relativePosition = new Vector3(15, 270);
+            _coalitionLabel.relativePosition = new Vector3(15, 270f + extraLegend);
 
             _policiesLabel = AddUIComponent<UILabel>();
             _policiesLabel.textScale = 0.8f;
-            _policiesLabel.relativePosition = new Vector3(15, 293);
-            // Single-line label - the list is truncated to avoid overflow.
+            _policiesLabel.relativePosition = new Vector3(15, 293f + extraLegend);
             _policiesLabel.autoSize = false;
-            _policiesLabel.size = new Vector2(width - 30, 18);
+            _policiesLabel.size = new Vector2(105, 18);
             _policiesLabel.clipChildren = true;
+            _policiesLabel.text = "Active policies:";
+
+            // Icon row sits immediately to the right of the label and holds
+            // one UISprite per active policy. Populated by RebuildPoliciesIcons
+            // whenever the policy list changes.
+            _policiesIconRow = AddUIComponent<UIPanel>();
+            _policiesIconRow.relativePosition = new Vector3(120, 293f + extraLegend);
+            _policiesIconRow.size = new Vector2(width - 135, 24);
+            _policiesIconRow.clipChildren = true;
+            _policiesIconRow.autoLayout = false;
 
             _overlayBtn = AddUIComponent<UIButton>();
             _overlayBtn.text = "Overlay: Off";
@@ -207,7 +233,11 @@ namespace PoliticsMod
             minChirpsCB.eventCheckChanged += (c, v) => { DebugFlags.MinimalChirps = v; };
 
             // -------- Runtime config sliders --------
-            float sliderY = 310f;
+            // Shift down by the same extraLegend offset so the "Election
+            // timings" header doesn't overlap the Active policies label
+            // when the legend wraps to a second row. The extra +10 accounts
+            // for the taller policy-icon row (22px icons).
+            float sliderY = 320f + extraLegend;
             var header = AddUIComponent<UILabel>();
             header.text = "Election timings (editable)";
             header.textScale = 0.95f;
@@ -287,15 +317,13 @@ namespace PoliticsMod
         {
             base.Update();
 
-            // Hotkey toggle (configurable key; optionally requires Ctrl).
-            bool ctrlHeld = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
-            if (!RuntimeConfig.TogglePanelRequireCtrl || ctrlHeld)
-            {
-                if (Input.GetKeyDown(RuntimeConfig.TogglePanelKey))
-                {
-                    isVisible = !isVisible;
-                }
-            }
+            // NOTE: hotkey detection lives in PoliticsOverlay.Update() (a
+            // plain MonoBehaviour on a DontDestroyOnLoad GameObject). Hosting
+            // it here was unreliable because the Colossal UI framework stops
+            // ticking UIComponent.Update() on components that were never
+            // visible, leaving brand-new sessions with no way to open the
+            // panel.
+
             if (!isVisible) return;
 
             var st = PoliticsState.Instance;
@@ -328,30 +356,106 @@ namespace PoliticsMod
                 _coalitionLabel.text = "Coalition: (none)";
             }
 
-            // Policies - single-line summary with truncation.
-            if (st.AppliedVanillaPolicies != null && st.AppliedVanillaPolicies.Count > 0)
+            // Policies - horizontal icon row. The row is rebuilt only when
+            // the list of applied policies actually changes (hash compare),
+            // so we're not churning UI components every frame.
+            var policies = st.AppliedVanillaPolicies;
+            int hash = 17;
+            if (policies != null)
             {
-                const int maxShown = 4;
-                var sb = new StringBuilder("Active policies: ");
-                int shown = Math.Min(maxShown, st.AppliedVanillaPolicies.Count);
-                for (int i = 0; i < shown; i++)
-                {
-                    if (i > 0) sb.Append(", ");
-                    sb.Append(st.AppliedVanillaPolicies[i]);
-                }
-                if (st.AppliedVanillaPolicies.Count > shown)
-                    sb.Append(" (+").Append(st.AppliedVanillaPolicies.Count - shown).Append(" more)");
-                _policiesLabel.text = sb.ToString();
-                _policiesLabel.tooltip = string.Join(", ",
-                    st.AppliedVanillaPolicies.ConvertAll(p => p.ToString()).ToArray());
+                for (int i = 0; i < policies.Count; i++)
+                    hash = unchecked(hash * 31 + (int)policies[i]);
             }
-            else
+            if (hash != _lastPoliciesHash)
             {
-                _policiesLabel.text = "Active policies: (none)";
-                _policiesLabel.tooltip = "";
+                _lastPoliciesHash = hash;
+                RebuildPoliciesIcons(policies);
             }
 
             _overlayBtn.text = "Overlay: " + st.Overlay;
+        }
+
+        /// <summary>
+        /// Destroy the current policy icons and rebuild the row from
+        /// <paramref name="policies"/>. Uses the vanilla "IconPolicy{Name}"
+        /// sprites from the default UI atlas, same convention the party
+        /// editor uses.  Each icon gets a tooltip with the spaced-out
+        /// policy name. If the icons won't all fit in the row width, the
+        /// trailing ones collapse into a "+N" label whose tooltip lists
+        /// them.
+        /// </summary>
+        private void RebuildPoliciesIcons(List<DistrictPolicies.Policies> policies)
+        {
+            if (_policiesIconRow == null) return;
+
+            // Tear down whatever is currently in the row.
+            var toKill = new List<GameObject>();
+            foreach (Transform t in _policiesIconRow.transform) toKill.Add(t.gameObject);
+            foreach (var g in toKill) UnityEngine.Object.Destroy(g);
+
+            if (policies == null || policies.Count == 0)
+            {
+                var none = _policiesIconRow.AddUIComponent<UILabel>();
+                none.text = "(none)";
+                none.textScale = 0.8f;
+                none.relativePosition = new Vector3(0f, 0f);
+                return;
+            }
+
+            var view = GetUIView();
+            var atlas = view != null ? view.defaultAtlas : null;
+
+            const float iconSize = 22f;
+            const float gap      = 3f;
+            float slotW = iconSize + gap;
+
+            // How many icons physically fit into the row.
+            int maxFit = Mathf.Max(1, Mathf.FloorToInt((_policiesIconRow.width + gap) / slotW));
+            bool overflow = policies.Count > maxFit;
+            // Reserve the last slot for a "+N more" marker when overflowing.
+            int shown = overflow ? Math.Max(0, maxFit - 1) : policies.Count;
+
+            float x = 0f;
+            for (int i = 0; i < shown; i++)
+            {
+                var policy = policies[i];
+                var icon = _policiesIconRow.AddUIComponent<UISprite>();
+                icon.atlas = atlas;
+                icon.spriteName = "IconPolicy" + policy.ToString();
+                icon.size = new Vector2(iconSize, iconSize);
+                icon.relativePosition = new Vector3(x, 1f);
+                icon.tooltip = FormatPolicyDisplayName(policy);
+                x += slotW;
+            }
+
+            if (overflow)
+            {
+                var more = _policiesIconRow.AddUIComponent<UILabel>();
+                more.text = "+" + (policies.Count - shown);
+                more.textScale = 0.75f;
+                more.relativePosition = new Vector3(x, 3f);
+                // Tooltip lists every policy that was hidden.
+                var hidden = new StringBuilder();
+                for (int i = shown; i < policies.Count; i++)
+                {
+                    if (hidden.Length > 0) hidden.Append(", ");
+                    hidden.Append(FormatPolicyDisplayName(policies[i]));
+                }
+                more.tooltip = hidden.ToString();
+            }
+        }
+
+        /// <summary>Split PascalCase enum name into a spaced human label.</summary>
+        private static string FormatPolicyDisplayName(DistrictPolicies.Policies p)
+        {
+            string raw = p.ToString();
+            var sb = new StringBuilder(raw.Length + 4);
+            for (int i = 0; i < raw.Length; i++)
+            {
+                if (i > 0 && char.IsUpper(raw[i]) && !char.IsUpper(raw[i - 1])) sb.Append(' ');
+                sb.Append(raw[i]);
+            }
+            return sb.ToString();
         }
 
         private void OnGUI()
@@ -373,7 +477,23 @@ namespace PoliticsMod
                 s.fontSize = 14;
                 s.normal.textColor = Color.white;
                 s.alignment = TextAnchor.UpperLeft;
-                GUI.Box(new Rect(Screen.width - 460f, 100f, 440f, 260f), ResultsPopupText, s);
+                // Reserve a bit of top-right padding inside the box for the
+                // close button so text doesn't run under it.
+                s.padding = new RectOffset(8, 36, 8, 8);
+                Rect boxRect = new Rect(Screen.width - 460f, 100f, 440f, 260f);
+                GUI.Box(boxRect, ResultsPopupText, s);
+
+                // Close button in the top-right corner of the popup.
+                var closeStyle = new GUIStyle(GUI.skin.button);
+                closeStyle.fontSize = 14;
+                closeStyle.alignment = TextAnchor.MiddleCenter;
+                Rect closeRect = new Rect(boxRect.xMax - 28f, boxRect.y + 6f, 22f, 22f);
+                if (GUI.Button(closeRect, "x", closeStyle))
+                {
+                    // Force-hide immediately. The guard above re-evaluates
+                    // next frame and skips rendering.
+                    ResultsPopupShownUntil = 0f;
+                }
             }
         }
     }

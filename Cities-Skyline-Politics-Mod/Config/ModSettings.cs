@@ -69,6 +69,38 @@ namespace PoliticsMod
                         case "VerboseLogging":
                             DebugFlags.Verbose = (v == "true" || v == "True");
                             break;
+                        case "OverlayLegendX":
+                            {
+                                float f;
+                                if (float.TryParse(v, System.Globalization.NumberStyles.Float,
+                                        System.Globalization.CultureInfo.InvariantCulture, out f))
+                                    RuntimeConfig.OverlayLegendX = f;
+                                break;
+                            }
+                        case "OverlayLegendY":
+                            {
+                                float f;
+                                if (float.TryParse(v, System.Globalization.NumberStyles.Float,
+                                        System.Globalization.CultureInfo.InvariantCulture, out f))
+                                    RuntimeConfig.OverlayLegendY = f;
+                                break;
+                            }
+                        case "InfoButtonX":
+                            {
+                                float f;
+                                if (float.TryParse(v, System.Globalization.NumberStyles.Float,
+                                        System.Globalization.CultureInfo.InvariantCulture, out f))
+                                    RuntimeConfig.InfoButtonX = f;
+                                break;
+                            }
+                        case "InfoButtonY":
+                            {
+                                float f;
+                                if (float.TryParse(v, System.Globalization.NumberStyles.Float,
+                                        System.Globalization.CultureInfo.InvariantCulture, out f))
+                                    RuntimeConfig.InfoButtonY = f;
+                                break;
+                            }
                     }
                 }
             }
@@ -91,6 +123,14 @@ namespace PoliticsMod
                 AppendNode(doc, root, "TogglePanelKey",        RuntimeConfig.TogglePanelKey.ToString());
                 AppendNode(doc, root, "TogglePanelRequireCtrl",RuntimeConfig.TogglePanelRequireCtrl ? "true" : "false");
                 AppendNode(doc, root, "VerboseLogging",        DebugFlags.Verbose ? "true" : "false");
+                AppendNode(doc, root, "OverlayLegendX",
+                    RuntimeConfig.OverlayLegendX.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                AppendNode(doc, root, "OverlayLegendY",
+                    RuntimeConfig.OverlayLegendY.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                AppendNode(doc, root, "InfoButtonX",
+                    RuntimeConfig.InfoButtonX.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                AppendNode(doc, root, "InfoButtonY",
+                    RuntimeConfig.InfoButtonY.ToString(System.Globalization.CultureInfo.InvariantCulture));
                 doc.Save(path);
             }
             catch (Exception e)

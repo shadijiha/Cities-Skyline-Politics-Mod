@@ -24,7 +24,7 @@ namespace PoliticsMod
     public class PartyEditorPanel : UIPanel
     {
         public const int MinParties = 1;
-        public const int MaxParties = 6;
+        public const int MaxParties = 12;
 
         private static PartyEditorPanel _instance;
 
@@ -70,6 +70,17 @@ namespace PoliticsMod
             isInteractive = true;
             relativePosition = new Vector3(120, 30);
             BuildUI();
+
+            // Reset the form scroll every time the panel goes from hidden
+            // to visible. Without this, closing while scrolled and then
+            // reopening leaves UIScrollablePanel in a stale layout state
+            // (visible gap at the top, bottom content clipped).
+            eventVisibilityChanged += (c, visible) =>
+            {
+                if (!visible || _formPanel == null) return;
+                _formPanel.scrollPosition = Vector2.zero;
+            };
+
             // Do NOT set isVisible here — the caller (Toggle) controls it.
             // Setting isVisible = false would fight with the Toggle that
             // triggered this Start() in the first place.
@@ -625,7 +636,16 @@ namespace PoliticsMod
             t.canFocus = true;
             t.horizontalAlignment = UIHorizontalAlignment.Left;
             t.normalBgSprite = "TextFieldPanel";
-            t.textColor = Color.white;
+            // Foreground colour + visible blinking caret. Without cursorWidth/
+            // cursorBlinkTime + a selectionSprite, Colossal's UITextField
+            // draws the text but no caret, so users can type but have no
+            // visual indication of where they are.
+            t.color       = Color.white;
+            t.textColor   = Color.white;
+            t.cursorWidth = 1;
+            t.cursorBlinkTime = 0.45f;
+            t.selectionSprite = "EmptySprite";
+            t.selectionBackgroundColor = new Color32(0, 120, 200, 255);
             t.padding = new RectOffset(6, 6, 6, 6);
             t.text = initial ?? "";
             t.eventTextSubmitted += (c, v) => { onChanged(v); };
