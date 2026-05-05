@@ -1475,17 +1475,6 @@ namespace PoliticsMod
         /// <summary>
         /// Post a chirp (in-game Twitter-style notification) from a given sender.
         ///
-        /// Uses <c>ChirpPanel.AddMessage(IChirperMessage)</c> - the ephemeral
-        /// mod-facing path - NOT <c>MessageManager.QueueMessage</c>. The
-        /// distinction matters: MessageManager serializes every queued
-        /// MessageBase into the vanilla save, which used to poison the save
-        /// with references to PoliticsMod types. Those references then caused
-        /// "Simulation error: Unknown type: PoliticsMod.PoliticsChirpMessage"
-        /// when the save was later loaded without our mod installed.
-        ///
-        /// ChirpPanel.AddMessage with an IChirperMessage renders the chirp in
-        /// the bird feed UI for the session but never writes to the save,
-        /// which is exactly what we want.
         /// </summary>
         public static void PostChirp(string sender, string text, uint senderSeed = 0)
         {
