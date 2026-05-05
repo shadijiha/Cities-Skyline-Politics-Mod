@@ -100,6 +100,11 @@ namespace PoliticsMod
             _hemi = AddUIComponent<HemicycleView>();
             _hemi.relativePosition = new Vector3(15, 70);
             _hemi.size = new Vector2(width - 30, 170);
+            _hemi.tooltip =
+                "Parliament size scales with your population:\n"
+                + "1 seat per " + Config.SeatsPerCitizens + " citizens "
+                + "(min " + Config.MinParliamentSeats
+                + ", max " + Config.MaxParliamentSeats + ").";
 
             _legend = AddUIComponent<PartyLegendRow>();
             _legend.relativePosition = new Vector3(15, 70 + 170 + 2);
@@ -130,7 +135,7 @@ namespace PoliticsMod
             // whenever the policy list changes.
             _policiesIconRow = AddUIComponent<UIPanel>();
             _policiesIconRow.relativePosition = new Vector3(120, 293f + extraLegend);
-            _policiesIconRow.size = new Vector2(width - 135, 18);
+            _policiesIconRow.size = new Vector2(width - 135, 24);
             _policiesIconRow.clipChildren = true;
             _policiesIconRow.autoLayout = false;
 
@@ -230,8 +235,9 @@ namespace PoliticsMod
             // -------- Runtime config sliders --------
             // Shift down by the same extraLegend offset so the "Election
             // timings" header doesn't overlap the Active policies label
-            // when the legend wraps to a second row.
-            float sliderY = 310f + extraLegend;
+            // when the legend wraps to a second row. The extra +10 accounts
+            // for the taller policy-icon row (22px icons).
+            float sliderY = 320f + extraLegend;
             var header = AddUIComponent<UILabel>();
             header.text = "Election timings (editable)";
             header.textScale = 0.95f;
@@ -399,7 +405,7 @@ namespace PoliticsMod
             var view = GetUIView();
             var atlas = view != null ? view.defaultAtlas : null;
 
-            const float iconSize = 16f;
+            const float iconSize = 22f;
             const float gap      = 3f;
             float slotW = iconSize + gap;
 
