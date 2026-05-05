@@ -287,15 +287,13 @@ namespace PoliticsMod
         {
             base.Update();
 
-            // Hotkey toggle (configurable key; optionally requires Ctrl).
-            bool ctrlHeld = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
-            if (!RuntimeConfig.TogglePanelRequireCtrl || ctrlHeld)
-            {
-                if (Input.GetKeyDown(RuntimeConfig.TogglePanelKey))
-                {
-                    isVisible = !isVisible;
-                }
-            }
+            // NOTE: hotkey detection lives in PoliticsOverlay.Update() (a
+            // plain MonoBehaviour on a DontDestroyOnLoad GameObject). Hosting
+            // it here was unreliable because the Colossal UI framework stops
+            // ticking UIComponent.Update() on components that were never
+            // visible, leaving brand-new sessions with no way to open the
+            // panel.
+
             if (!isVisible) return;
 
             var st = PoliticsState.Instance;
