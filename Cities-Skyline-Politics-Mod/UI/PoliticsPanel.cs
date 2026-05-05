@@ -371,7 +371,23 @@ namespace PoliticsMod
                 s.fontSize = 14;
                 s.normal.textColor = Color.white;
                 s.alignment = TextAnchor.UpperLeft;
-                GUI.Box(new Rect(Screen.width - 460f, 100f, 440f, 260f), ResultsPopupText, s);
+                // Reserve a bit of top-right padding inside the box for the
+                // close button so text doesn't run under it.
+                s.padding = new RectOffset(8, 36, 8, 8);
+                Rect boxRect = new Rect(Screen.width - 460f, 100f, 440f, 260f);
+                GUI.Box(boxRect, ResultsPopupText, s);
+
+                // Close button in the top-right corner of the popup.
+                var closeStyle = new GUIStyle(GUI.skin.button);
+                closeStyle.fontSize = 14;
+                closeStyle.alignment = TextAnchor.MiddleCenter;
+                Rect closeRect = new Rect(boxRect.xMax - 28f, boxRect.y + 6f, 22f, 22f);
+                if (GUI.Button(closeRect, "x", closeStyle))
+                {
+                    // Force-hide immediately. The guard above re-evaluates
+                    // next frame and skips rendering.
+                    ResultsPopupShownUntil = 0f;
+                }
             }
         }
     }

@@ -33,6 +33,13 @@ namespace PoliticsMod
         public static float OverlayLegendX = 15f;
         public static float OverlayLegendY = 115f;
 
+        // "Politics: <mode>" info-view button position (top-left, screen px).
+        // -1f means "never been placed" - the button falls back to its auto
+        // anchor (top-right) on first launch, then this value tracks the
+        // last user-dragged position.
+        public static float InfoButtonX = -1f;
+        public static float InfoButtonY = -1f;
+
         // Hard bounds so sliders stay sane. Change only if you need longer/shorter.
         public const float MinTerm     = 7f;    public const float MaxTerm     = 1825f; // 1 week .. 5 years
         public const float MinCampaign = 1f;    public const float MaxCampaign = 180f;  // 1 day .. 6 months

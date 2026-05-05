@@ -85,6 +85,22 @@ namespace PoliticsMod
                                     RuntimeConfig.OverlayLegendY = f;
                                 break;
                             }
+                        case "InfoButtonX":
+                            {
+                                float f;
+                                if (float.TryParse(v, System.Globalization.NumberStyles.Float,
+                                        System.Globalization.CultureInfo.InvariantCulture, out f))
+                                    RuntimeConfig.InfoButtonX = f;
+                                break;
+                            }
+                        case "InfoButtonY":
+                            {
+                                float f;
+                                if (float.TryParse(v, System.Globalization.NumberStyles.Float,
+                                        System.Globalization.CultureInfo.InvariantCulture, out f))
+                                    RuntimeConfig.InfoButtonY = f;
+                                break;
+                            }
                     }
                 }
             }
@@ -111,6 +127,10 @@ namespace PoliticsMod
                     RuntimeConfig.OverlayLegendX.ToString(System.Globalization.CultureInfo.InvariantCulture));
                 AppendNode(doc, root, "OverlayLegendY",
                     RuntimeConfig.OverlayLegendY.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                AppendNode(doc, root, "InfoButtonX",
+                    RuntimeConfig.InfoButtonX.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                AppendNode(doc, root, "InfoButtonY",
+                    RuntimeConfig.InfoButtonY.ToString(System.Globalization.CultureInfo.InvariantCulture));
                 doc.Save(path);
             }
             catch (Exception e)

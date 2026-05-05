@@ -1629,7 +1629,7 @@ namespace PoliticsMod
             }
             sb.Append("Turnout: " + (int)(r.Turnout * 100) + "%");
             PoliticsPanel.ResultsPopupText = sb.ToString();
-            PoliticsPanel.ResultsPopupShownUntil = Time.realtimeSinceStartup + 30f;
+            PoliticsPanel.ResultsPopupShownUntil = Time.realtimeSinceStartup + 15f;
             PoliticsUserMod.Log(sb.ToString());
         }
     }

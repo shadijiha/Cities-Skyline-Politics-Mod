@@ -95,11 +95,9 @@ namespace PoliticsMod
         {
             try
             {
-                var view = UIView.GetAView();
-                if (view == null) return false;
-                var active = view.activeComponent;
+                var active = UIView.activeComponent;
                 if (active == null) return false;
-                if (active is UITextField)  return true;
+                if (active is UITextField) return true;
 #if UNITY_2018_OR_NEWER
                 // UITextComponent doesn't exist on every CS1 build so only
                 // guard against it conditionally.
