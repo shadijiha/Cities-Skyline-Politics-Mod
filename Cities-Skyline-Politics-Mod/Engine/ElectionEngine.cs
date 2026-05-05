@@ -86,69 +86,221 @@ namespace PoliticsMod
             }
         }
 
-        /// <summary>Very simple slogan picker keyed by party and context.</summary>
+        /// <summary>
+        /// Pick a slogan body for a party's chirp, bucketed by the party's
+        /// ideology (economic x-axis, social y-axis) and context
+        /// ("campaign" / "victory" / "defeat"). The party's ShortName is
+        /// appended as a hashtag at the very end, so user-renamed parties
+        /// automatically get the right tag without editing slogan strings.
+        ///
+        /// Parties that are near-neutral on BOTH the economic and social
+        /// axes don't fit any flavor pool and just post a bare hashtag.
+        /// </summary>
         private static string PickSloganForParty(int partyId, string context)
         {
             var p = Config.Parties[partyId];
-            // Pick a slogan style based on economic axis (left / center / right)
-            float econ = p.Ideology.x;
-            string[] leftCampaign = new[]
-            {
-                "Tax the rich, fund the schools! #" + p.ShortName,
-                "Working class first. Change is coming. #" + p.ShortName,
-                "Housing is a right, not a privilege. #" + p.ShortName,
-            };
-            string[] centerCampaign = new[]
-            {
-                "Pragmatic government. Smart policy. #" + p.ShortName,
-                "Balanced budgets, strong services. #" + p.ShortName,
-                "Working across the aisle for our city. #" + p.ShortName,
-            };
-            string[] rightCampaign = new[]
-            {
-                "Lower taxes, safer streets. #" + p.ShortName,
-                "Small government, big results. #" + p.ShortName,
-                "Back to basics. Back to greatness. #" + p.ShortName,
-            };
-            string[] leftVictory = new[]
-            {
-                "We did it! A new dawn for workers! #" + p.ShortName,
-                "The people have spoken. Reform starts now. #" + p.ShortName,
-            };
-            string[] centerVictory = new[]
-            {
-                "Thank you. We will govern for everyone. #" + p.ShortName,
-                "A steady hand is what the city needs. #" + p.ShortName,
-            };
-            string[] rightVictory = new[]
-            {
-                "Victory! Freedom and prosperity. #" + p.ShortName,
-                "A clear mandate for lower taxes. #" + p.ShortName,
-            };
-            string[] leftDefeat = new[]
-            {
-                "We fight on. The struggle continues. #" + p.ShortName,
-                "This is not the end - it's a beginning. #" + p.ShortName,
-            };
-            string[] centerDefeat = new[]
-            {
-                "We respect the result. Back to work for our voters. #" + p.ShortName,
-                "Opposition will hold the government accountable. #" + p.ShortName,
-            };
-            string[] rightDefeat = new[]
-            {
-                "We accept the result and will rebuild stronger. #" + p.ShortName,
-                "The silent majority will have its day. #" + p.ShortName,
-            };
+            string[] pool = SelectSloganPool(p.Ideology, context);
 
-            string[] pool;
-            bool isCampaign = context == "campaign";
-            bool isVictory  = context == "victory";
-            if (econ < -0.3f)      pool = isCampaign ? leftCampaign   : (isVictory ? leftVictory   : leftDefeat);
-            else if (econ > +0.3f) pool = isCampaign ? rightCampaign  : (isVictory ? rightVictory  : rightDefeat);
-            else                   pool = isCampaign ? centerCampaign : (isVictory ? centerVictory : centerDefeat);
-            return pool[UnityEngine.Random.Range(0, pool.Length)];
+            // No ideological fit (or empty pool) -> just the hashtag.
+            if (pool == null || pool.Length == 0)
+                return "#" + p.ShortName + " #Vote";
+
+            string body = pool[UnityEngine.Random.Range(0, pool.Length)];
+            return body + " #" + p.ShortName;
         }
+
+        /// <summary>
+        /// Bucket the party's ideology into one of six cells (3 economic
+        /// x 2 social) and return the matching slogan pool for the context.
+        /// Returns null when the party is too centrist on BOTH axes to pick
+        /// a flavor pool, so the caller can fall back to a bare hashtag.
+        /// </summary>
+        private static string[] SelectSloganPool(Vector3 ideology, string context)
+        {
+            float econ = ideology.x;
+            float social = ideology.y;
+
+            // "Truly neutral" fallback: inside the dead zone on both axes we
+            // have nothing interesting to say, so don't pretend to.
+            if (Mathf.Abs(econ) < 0.15f && Mathf.Abs(social) < 0.15f) return null;
+
+            // econ: 0 = left (<-0.3), 1 = center, 2 = right (>+0.3)
+            int econBucket = econ < -0.3f ? 0 : (econ > +0.3f ? 2 : 1);
+            // social: 0 = progressive (y<0), 1 = traditional (y>=0)
+            int socialBucket = social < 0f ? 0 : 1;
+
+            string[][][] matrix;
+            if (context == "campaign")     matrix = CampaignPools;
+            else if (context == "victory") matrix = VictoryPools;
+            else                           matrix = DefeatPools;
+
+            return matrix[econBucket][socialBucket];
+        }
+
+        // --------------------------------------------------------------
+        // Slogan matrix: [econBucket][socialBucket][variantIndex].
+        //   econBucket:   0 = left,         1 = center,       2 = right
+        //   socialBucket: 0 = progressive,  1 = traditional
+        //
+        // Each cell has 2 variants, picked randomly. The party's ShortName
+        // is appended by PickSloganForParty() so these strings never embed
+        // a hashtag.
+        // --------------------------------------------------------------
+        private static readonly string[][][] CampaignPools = new string[][][]
+        {
+            // --- LEFT ------------------------------------------------------
+            new string[][]
+            {
+                // left + progressive
+                new string[]
+                {
+                    "A greener, fairer city for all.",
+                    "Healthcare and housing are human rights.",
+                },
+                // left + traditional
+                new string[]
+                {
+                    "Good jobs. Strong unions. Proud neighborhoods.",
+                    "The workers built this city. Time to take it back.",
+                },
+            },
+            // --- CENTER ----------------------------------------------------
+            new string[][]
+            {
+                // center + progressive
+                new string[]
+                {
+                    "Smart, pragmatic progress.",
+                    "Evidence-based policy for a modern city.",
+                },
+                // center + traditional
+                new string[]
+                {
+                    "Steady hands. Sound judgment.",
+                    "Protect what works. Fix what doesn't.",
+                },
+            },
+            // --- RIGHT -----------------------------------------------------
+            new string[][]
+            {
+                // right + progressive
+                new string[]
+                {
+                    "Lower taxes. Open markets. Open minds.",
+                    "Free citizens build the best cities.",
+                },
+                // right + traditional
+                new string[]
+                {
+                    "Law, order, and lower taxes.",
+                    "Back to basics. Back to greatness.",
+                },
+            },
+        };
+
+        private static readonly string[][][] VictoryPools = new string[][][]
+        {
+            // --- LEFT ------------------------------------------------------
+            new string[][]
+            {
+                // left + progressive
+                new string[]
+                {
+                    "A mandate for justice and the planet.",
+                    "Together we build the city we deserve.",
+                },
+                // left + traditional
+                new string[]
+                {
+                    "A win for every family that works for a living.",
+                    "Hard work and solidarity carried the day.",
+                },
+            },
+            // --- CENTER ----------------------------------------------------
+            new string[][]
+            {
+                // center + progressive
+                new string[]
+                {
+                    "A mandate for competent, compassionate government.",
+                    "Reason and reform - starting today.",
+                },
+                // center + traditional
+                new string[]
+                {
+                    "A vote for stability and common sense.",
+                    "We will govern for every citizen.",
+                },
+            },
+            // --- RIGHT -----------------------------------------------------
+            new string[][]
+            {
+                // right + progressive
+                new string[]
+                {
+                    "A victory for liberty and prosperity.",
+                    "The future belongs to the free.",
+                },
+                // right + traditional
+                new string[]
+                {
+                    "A clear mandate to restore our values.",
+                    "The silent majority has spoken.",
+                },
+            },
+        };
+
+        private static readonly string[][][] DefeatPools = new string[][][]
+        {
+            // --- LEFT ------------------------------------------------------
+            new string[][]
+            {
+                // left + progressive
+                new string[]
+                {
+                    "The movement doesn't stop at an election.",
+                    "We keep organizing. We keep fighting.",
+                },
+                // left + traditional
+                new string[]
+                {
+                    "The workers' fight never ends.",
+                    "We regroup. We organize. We come back.",
+                },
+            },
+            // --- CENTER ----------------------------------------------------
+            new string[][]
+            {
+                // center + progressive
+                new string[]
+                {
+                    "We accept the result. The work continues.",
+                    "Good ideas don't lose. They wait.",
+                },
+                // center + traditional
+                new string[]
+                {
+                    "We thank our voters and stand as loyal opposition.",
+                    "Democracy spoke. We listen.",
+                },
+            },
+            // --- RIGHT -----------------------------------------------------
+            new string[][]
+            {
+                // right + progressive
+                new string[]
+                {
+                    "Freedom is a long game. We're patient.",
+                    "Markets correct. So will politics.",
+                },
+                // right + traditional
+                new string[]
+                {
+                    "We fight on for the heart of our city.",
+                    "We accept the result. The struggle for our values continues.",
+                },
+            },
+        };
 
         public static void DriftCampaign(float dayDelta)
         {
@@ -1322,22 +1474,34 @@ namespace PoliticsMod
 
         /// <summary>
         /// Post a chirp (in-game Twitter-style notification) from a given sender.
-        /// CS1's MessageManager queues a <see cref="MessageBase"/> which becomes
-        /// a Chirper bubble. Safe to call before the manager exists (no-op).
+        ///
+        /// Uses <c>ChirpPanel.AddMessage(IChirperMessage)</c> - the ephemeral
+        /// mod-facing path - NOT <c>MessageManager.QueueMessage</c>. The
+        /// distinction matters: MessageManager serializes every queued
+        /// MessageBase into the vanilla save, which used to poison the save
+        /// with references to PoliticsMod types. Those references then caused
+        /// "Simulation error: Unknown type: PoliticsMod.PoliticsChirpMessage"
+        /// when the save was later loaded without our mod installed.
+        ///
+        /// ChirpPanel.AddMessage with an IChirperMessage renders the chirp in
+        /// the bird feed UI for the session but never writes to the save,
+        /// which is exactly what we want.
         /// </summary>
         public static void PostChirp(string sender, string text, uint senderSeed = 0)
         {
             try
             {
-                var mm = Singleton<MessageManager>.instance;
-                if (mm == null) return;
                 if (senderSeed == 0u)
                 {
-                    // Use a hash of the sender name so repeated chirps from the
-                    // same party cluster in the chirper.
+                    // Use a hash of the sender name so repeated chirps from
+                    // the same party cluster in the chirper.
                     senderSeed = (uint)(Math.Abs(sender.GetHashCode()) | 1);
                 }
-                mm.QueueMessage(new PoliticsChirpMessage(sender, text, senderSeed));
+
+                var panel = ChirpPanel.instance;
+                if (panel == null) return; // menu / loading - silently skip
+
+                panel.AddMessage(new PoliticsTransientChirp(sender, text, senderSeed));
             }
             catch (Exception e)
             {

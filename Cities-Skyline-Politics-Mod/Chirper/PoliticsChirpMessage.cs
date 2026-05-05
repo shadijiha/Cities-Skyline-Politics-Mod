@@ -67,4 +67,32 @@ namespace PoliticsMod
 
         public override void AfterDeserialize(ColossalFramework.IO.DataSerializer s) { }
     }
+
+
+    // ========================================================================
+    //  TRANSIENT CHIRP - ephemeral chirper entry.
+    //
+    //  Unlike PoliticsChirpMessage above (which is a MessageBase subclass and
+    //  therefore gets serialized into the vanilla save by MessageManager),
+    //  this class implements only ICities.IChirperMessage and is meant to be
+    //  handed to ChirpPanel.AddMessage. ChirpPanel renders it in the bird
+    //  feed UI for the session, but it is NEVER persisted into the save.
+    //
+    //  This is how we avoid poisoning the user's savegame with references
+    //  to PoliticsMod types - if no MessageBase subclass of ours is ever
+    //  queued, no serialized chirp can fail to resolve after uninstall.
+    // ========================================================================
+    public class PoliticsTransientChirp : ICities.IChirperMessage
+    {
+        public string senderName { get; private set; }
+        public string text       { get; private set; }
+        public uint   senderID   { get; private set; }
+
+        public PoliticsTransientChirp(string sender, string message, uint id)
+        {
+            senderName = sender ?? "";
+            text       = message ?? "";
+            senderID   = id;
+        }
+    }
 }
