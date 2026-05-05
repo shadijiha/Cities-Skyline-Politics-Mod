@@ -98,16 +98,23 @@ namespace PoliticsMod
 
             _legend = AddUIComponent<PartyLegendRow>();
             _legend.relativePosition = new Vector3(15, 70 + 170 + 2);
-            _legend.size = new Vector2(width - 30, 22);
+            float legendH = PartyLegendRow.HeightFor(PartyCountRef.Value);
+            _legend.size = new Vector2(width - 30, legendH);
             _legend.Build(PartyCountRef.Value);
+
+            // Coalition/policies labels used to live at hardcoded y=270 and
+            // y=293, which assumed a 22px single-row legend. When the legend
+            // wraps to a second row (7+ parties) we shift everything below
+            // down by the extra height so the labels aren't overlapped.
+            float extraLegend = Mathf.Max(0f, legendH - 22f);
 
             _coalitionLabel = AddUIComponent<UILabel>();
             _coalitionLabel.textScale = 0.85f;
-            _coalitionLabel.relativePosition = new Vector3(15, 270);
+            _coalitionLabel.relativePosition = new Vector3(15, 270f + extraLegend);
 
             _policiesLabel = AddUIComponent<UILabel>();
             _policiesLabel.textScale = 0.8f;
-            _policiesLabel.relativePosition = new Vector3(15, 293);
+            _policiesLabel.relativePosition = new Vector3(15, 293f + extraLegend);
             // Single-line label - the list is truncated to avoid overflow.
             _policiesLabel.autoSize = false;
             _policiesLabel.size = new Vector2(width - 30, 18);

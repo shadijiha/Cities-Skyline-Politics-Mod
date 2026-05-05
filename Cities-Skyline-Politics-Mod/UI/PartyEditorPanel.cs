@@ -70,6 +70,17 @@ namespace PoliticsMod
             isInteractive = true;
             relativePosition = new Vector3(120, 30);
             BuildUI();
+
+            // Reset the form scroll every time the panel goes from hidden
+            // to visible. Without this, closing while scrolled and then
+            // reopening leaves UIScrollablePanel in a stale layout state
+            // (visible gap at the top, bottom content clipped).
+            eventVisibilityChanged += (c, visible) =>
+            {
+                if (!visible || _formPanel == null) return;
+                _formPanel.scrollPosition = Vector2.zero;
+            };
+
             // Do NOT set isVisible here — the caller (Toggle) controls it.
             // Setting isVisible = false would fight with the Toggle that
             // triggered this Start() in the first place.
