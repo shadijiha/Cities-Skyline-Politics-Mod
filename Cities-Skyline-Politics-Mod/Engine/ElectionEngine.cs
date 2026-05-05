@@ -1540,8 +1540,7 @@ namespace PoliticsMod
         }
 
         /// <summary>Post one right-wing-leaning citizen chirp about the deficit.</summary>
-        public static void PostRandomCitizenDeficitChirp()
-        {
+        public static void PostRandomCitizenDeficitChirp()        {
             // Pick a right-wing party for the hashtag.
             int rightPartyId = -1;
             float bestX = float.MinValue;
@@ -1565,6 +1564,12 @@ namespace PoliticsMod
                 "Big spenders are bankrupting us. Switching my vote.",
                 "If my household ran like this, we'd be homeless.",
                 "Austerity now - or chaos later. " + tag,
+                "Liberez-nous des liberaux tabarnak " + tag,
+                "Baissez les taxes tabarnak, on est plus capable.",
+                "Osti que ca me tanne, toujours plus d'impots. " + tag,
+                "Ben voyons donc, j'en paye-tu assez d'impots? " + tag,
+                "Maudites taxes, on a rien pantoute pour notre argent.",
+                "Calisse, arretez de depenser mon argent. " + tag,
             };
 
             uint cid;
