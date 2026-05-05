@@ -636,7 +636,16 @@ namespace PoliticsMod
             t.canFocus = true;
             t.horizontalAlignment = UIHorizontalAlignment.Left;
             t.normalBgSprite = "TextFieldPanel";
-            t.textColor = Color.white;
+            // Foreground colour + visible blinking caret. Without cursorWidth/
+            // cursorBlinkTime + a selectionSprite, Colossal's UITextField
+            // draws the text but no caret, so users can type but have no
+            // visual indication of where they are.
+            t.color       = Color.white;
+            t.textColor   = Color.white;
+            t.cursorWidth = 1;
+            t.cursorBlinkTime = 0.45f;
+            t.selectionSprite = "EmptySprite";
+            t.selectionBackgroundColor = new Color32(0, 120, 200, 255);
             t.padding = new RectOffset(6, 6, 6, 6);
             t.text = initial ?? "";
             t.eventTextSubmitted += (c, v) => { onChanged(v); };
