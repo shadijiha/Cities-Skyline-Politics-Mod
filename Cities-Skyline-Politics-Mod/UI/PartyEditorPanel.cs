@@ -24,7 +24,7 @@ namespace PoliticsMod
     public class PartyEditorPanel : UIPanel
     {
         public const int MinParties = 1;
-        public const int MaxParties = 6;
+        public const int MaxParties = 12;
 
         private static PartyEditorPanel _instance;
 
