@@ -868,23 +868,161 @@ namespace PoliticsMod
         {
             if (Config.Parties.Length <= MinParties) return;
             if (_selectedIdx < 0 || _selectedIdx >= Config.Parties.Length) return;
-            string removed = Config.Parties[_selectedIdx].ShortName;
+            int removedIdx = _selectedIdx;
+            string removed = Config.Parties[removedIdx].ShortName;
 
             var newList = new PartyDef[Config.Parties.Length - 1];
             int j = 0;
             for (int i = 0; i < Config.Parties.Length; i++)
             {
-                if (i == _selectedIdx) continue;
+                if (i == removedIdx) continue;
                 newList[j++] = Config.Parties[i];
             }
             // Reassign ids so they stay 0..N-1 contiguous.
             for (int i = 0; i < newList.Length; i++) newList[i].Id = i;
             Config.Parties = newList;
-            ResizePerPartyArrays();
+
+            // Shift (not truncate) per-party state so the values stay aligned
+            // with the party they belong to, and remap every id stored in the
+            // state through the old->new mapping.
+            RemapStateAfterRemoval(removedIdx);
+
             _selectedIdx = Mathf.Clamp(_selectedIdx, 0, Config.Parties.Length - 1);
             RebuildList();
             RebuildForm();
-            PoliticsUserMod.Log("Removed party: " + removed);
+            PoliticsUserMod.Log("Removed party: " + removed + " (idx=" + removedIdx + ")");
+        }
+
+        /// <summary>
+        /// Rewrite every piece of per-party state in PoliticsState so that
+        /// indices and stored party ids reflect Config.Parties having lost
+        /// slot <paramref name="removedIdx"/>. Values at indices greater than
+        /// removedIdx shift down by one. Stored ids equal to removedIdx are
+        /// dropped; ids greater than removedIdx decrement by one.
+        /// </summary>
+        private static void RemapStateAfterRemoval(int removedIdx)
+        {
+            var st = PoliticsState.Instance;
+            if (st == null) return;
+            int n = Config.Parties.Length;
+
+            st.CurrentSeats    = ShiftIntArray(st.CurrentSeats, removedIdx, n);
+            st.CurrentSupport  = ShiftFloatArray(st.CurrentSupport, removedIdx, n);
+            st.ApprovalByParty = ShiftIntArray(st.ApprovalByParty, removedIdx, n);
+
+            // Coalition ids: drop the removed one, shift higher ones down.
+            if (st.CoalitionPartyIds != null)
+            {
+                var remapped = new List<int>(st.CoalitionPartyIds.Count);
+                foreach (var id in st.CoalitionPartyIds)
+                {
+                    if (id == removedIdx) continue;
+                    remapped.Add(id > removedIdx ? id - 1 : id);
+                }
+                st.CoalitionPartyIds = remapped;
+            }
+
+            // Per-building dominant party: removed -> 255 (no data),
+            // higher ids shift down so the overlay still colours correctly.
+            var bm = st.DominantPartyByBuilding;
+            if (bm != null)
+            {
+                for (int i = 0; i < bm.Length; i++)
+                {
+                    byte pid = bm[i];
+                    if (pid == 255) continue;
+                    if (pid == removedIdx) bm[i] = 255;
+                    else if (pid > removedIdx) bm[i] = (byte)(pid - 1);
+                }
+            }
+
+            // History entries have per-party arrays sized at election time.
+            // Shift them so old stats still display correctly side-by-side.
+            if (st.History != null)
+            {
+                foreach (var r in st.History) RemapElectionResult(r, removedIdx);
+            }
+            if (st.LastResult != null && (st.History == null || st.History.Count == 0 || st.History[st.History.Count - 1] != st.LastResult))
+            {
+                RemapElectionResult(st.LastResult, removedIdx);
+            }
+            // Re-point LastResult at the tail of History if possible, so any
+            // UI that reads either sees consistent data.
+            if (st.History != null && st.History.Count > 0)
+            {
+                st.LastResult = st.History[st.History.Count - 1];
+            }
+        }
+
+        private static void RemapElectionResult(ElectionResult r, int removedIdx)
+        {
+            if (r == null) return;
+            if (r.SeatsByParty     != null) r.SeatsByParty     = ShiftIntArray(r.SeatsByParty,     removedIdx, r.SeatsByParty.Length     - 1);
+            if (r.VoteShareByParty != null) r.VoteShareByParty = ShiftFloatArray(r.VoteShareByParty, removedIdx, r.VoteShareByParty.Length - 1);
+            if (r.ApprovalByParty  != null) r.ApprovalByParty  = ShiftIntArray(r.ApprovalByParty,  removedIdx, r.ApprovalByParty.Length  - 1);
+
+            if (r.CoalitionPartyIds != null)
+            {
+                var remapped = new List<int>(r.CoalitionPartyIds.Count);
+                foreach (var id in r.CoalitionPartyIds)
+                {
+                    if (id == removedIdx) continue;
+                    remapped.Add(id > removedIdx ? id - 1 : id);
+                }
+                r.CoalitionPartyIds = remapped;
+            }
+
+            r.VotesByAgeParty    = ShiftMatrixParty(r.VotesByAgeParty,    removedIdx);
+            r.VotesByEduParty    = ShiftMatrixParty(r.VotesByEduParty,    removedIdx);
+            r.VotesByWealthParty = ShiftMatrixParty(r.VotesByWealthParty, removedIdx);
+        }
+
+        // Copy src into a new array of length newLen, skipping index removedIdx.
+        // If the resulting array is shorter than newLen, trailing slots stay 0.
+        private static int[] ShiftIntArray(int[] src, int removedIdx, int newLen)
+        {
+            var dst = new int[newLen];
+            if (src == null) return dst;
+            int j = 0;
+            for (int i = 0; i < src.Length && j < newLen; i++)
+            {
+                if (i == removedIdx) continue;
+                dst[j++] = src[i];
+            }
+            return dst;
+        }
+
+        private static float[] ShiftFloatArray(float[] src, int removedIdx, int newLen)
+        {
+            var dst = new float[newLen];
+            if (src == null) return dst;
+            int j = 0;
+            for (int i = 0; i < src.Length && j < newLen; i++)
+            {
+                if (i == removedIdx) continue;
+                dst[j++] = src[i];
+            }
+            return dst;
+        }
+
+        // Shrink a [buckets, parties] matrix by dropping column removedIdx.
+        private static int[,] ShiftMatrixParty(int[,] src, int removedIdx)
+        {
+            if (src == null) return null;
+            int rows = src.GetLength(0);
+            int cols = src.GetLength(1);
+            if (removedIdx < 0 || removedIdx >= cols) return src;
+            var dst = new int[rows, cols - 1];
+            for (int r = 0; r < rows; r++)
+            {
+                int dc = 0;
+                for (int c = 0; c < cols; c++)
+                {
+                    if (c == removedIdx) continue;
+                    dst[r, dc++] = src[r, c];
+                }
+            }
+            return dst;
         }
 
         /// <summary>

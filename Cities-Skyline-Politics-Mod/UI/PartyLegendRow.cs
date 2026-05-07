@@ -70,8 +70,21 @@ namespace PoliticsMod
 
         public void Refresh(int[] seats, HashSet<int> coalition, int total)
         {
+            int want = Config.Parties.Length;
+            // Self-heal: if the party count changed (add/remove in the editor)
+            // our cached _items no longer matches. Destroy the old items and
+            // rebuild so later iteration is safe.
+            if (_items == null || _items.Length != want)
+            {
+                var toKill = new List<GameObject>();
+                foreach (Transform t in transform) toKill.Add(t.gameObject);
+                foreach (var g in toKill) UnityEngine.Object.Destroy(g);
+                Build(want);
+            }
             if (_items == null) return;
-            for (int i = 0; i < _items.Length; i++)
+
+            int n = Mathf.Min(_items.Length, Config.Parties.Length);
+            for (int i = 0; i < n; i++)
             {
                 var p = Config.Parties[i];
                 int s = i < seats.Length ? seats[i] : 0;
