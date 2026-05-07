@@ -74,9 +74,9 @@ namespace PoliticsMod
 
             float dayDelta = (float)delta;
 
-            // Only run politics if city has grown enough
-            int population = CitizenManagerUtil.GetPopulation();
-            if (population < Config.MinPopulationForElections)
+            // Population gate (0 = off)
+            if (Config.MinPopulationForElections > 0 &&
+                CitizenManagerUtil.GetPopulation() < Config.MinPopulationForElections)
             {
                 st.Phase = ElectionPhase.Idle;
                 return;

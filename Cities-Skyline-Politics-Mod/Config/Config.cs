@@ -49,7 +49,7 @@ namespace PoliticsMod
             get { return (ParliamentSeats / 2) + 1; }
         }
 
-        public const int MinPopulationForElections  = 3000;  // elections only kick in after this
+        public const int MinPopulationForElections  = 0;    // 0 = no gate; parliament still floors at MinParliamentSeats
         // Default values for the runtime-editable fields below. The *actual*
         // values used by the simulation live in RuntimeConfig and are editable
         // via the in-game panel and persisted in the savegame.
