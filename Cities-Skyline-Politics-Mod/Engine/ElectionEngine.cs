@@ -22,6 +22,9 @@ namespace PoliticsMod
     public static class ElectionEngine
     {
         private static System.Random _rng = new System.Random();
+        // Expose the shared RNG so auxiliary samplers (opinion polling) use
+        // the same random stream as the election engine.
+        public static System.Random Rng { get { return _rng; } }
         // Temp storage for the last full-sample's per-grievance vote counts.
         // Picked up by RunElection and stored on the ElectionResult.
         private static int[] _lastGrievanceTally;
@@ -692,7 +695,7 @@ namespace PoliticsMod
         /// Sets <paramref name="reason"/> to the dominant grievance that
         /// drove the choice, or Grievance.None if pure ideology.
         /// </summary>
-        private static int DecideVote(ref Citizen c, BuildingManager bm, out Grievance reason)
+        public static int DecideVote(ref Citizen c, BuildingManager bm, out Grievance reason)
         {
             reason = Grievance.None;
 

@@ -858,6 +858,9 @@ namespace PoliticsMod
             newList[newIdx] = newParty;
             Config.Parties = newList;
             ResizePerPartyArrays();
+            // Poll history is indexed by party id at sample time; invalidate
+            // it so the graph doesn't mix old samples with new ones.
+            OpinionPolling.Reset();
             _selectedIdx = newIdx;
             RebuildList();
             RebuildForm();
@@ -886,6 +889,9 @@ namespace PoliticsMod
             // with the party they belong to, and remap every id stored in the
             // state through the old->new mapping.
             RemapStateAfterRemoval(removedIdx);
+            // Poll history is indexed by party id at sample time; invalidate
+            // it so the graph doesn't mix old samples with new ones.
+            OpinionPolling.Reset();
 
             _selectedIdx = Mathf.Clamp(_selectedIdx, 0, Config.Parties.Length - 1);
             RebuildList();

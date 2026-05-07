@@ -74,6 +74,17 @@ namespace PoliticsMod
 
             float dayDelta = (float)delta;
 
+            // ---- Daily opinion poll ----
+            // We fire one poll per distinct in-game day, so fractional-day
+            // ticks don't spam samples. The day number comes from the
+            // current game time, rounded down.
+            int dayToday = (int)nowDays;
+            if (OpinionPolling.LastPolledDay != dayToday)
+            {
+                try { OpinionPolling.RunDailyPoll(dayToday); }
+                catch (Exception ex) { PoliticsUserMod.Log("Poll failed: " + ex.Message); }
+            }
+
             // Population gate (0 = off)
             if (Config.MinPopulationForElections > 0 &&
                 CitizenManagerUtil.GetPopulation() < Config.MinPopulationForElections)

@@ -208,6 +208,17 @@ namespace PoliticsMod
                 ElectionStatsPanel.Toggle();
             };
 
+            // -------- Opinion Polling button --------
+            var pollBtn = AddUIComponent<UIButton>();
+            pollBtn.text = "Opinion Polling";
+            pollBtn.size = new Vector2(200, 32);
+            pollBtn.relativePosition = new Vector3(15, height - 170);
+            pollBtn.normalBgSprite  = "ButtonMenu";
+            pollBtn.hoveredBgSprite = "ButtonMenuHovered";
+            pollBtn.pressedBgSprite = "ButtonMenuPressed";
+            pollBtn.textColor = Color.white;
+            pollBtn.eventClick += (c, p) => { OpinionPollingPanel.Toggle(); };
+
             // -------- Minimize Chirps checkbox --------
             var minChirpsCB = AddUIComponent<UICheckBox>();
             minChirpsCB.relativePosition = new Vector3(15, height - 127);

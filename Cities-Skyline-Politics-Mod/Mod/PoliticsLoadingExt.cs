@@ -34,6 +34,10 @@ namespace PoliticsMod
             if (PoliticsState.Instance == null)
                 PoliticsState.Instance = new PoliticsState();
 
+            // Polling history is in-memory only; wipe whatever the previous
+            // session left behind.
+            OpinionPolling.Reset();
+
             // Initialize per-building arrays to the current buildings buffer size.
             uint bSize = BuildingManager.instance.m_buildings.m_size;
             var st = PoliticsState.Instance;
