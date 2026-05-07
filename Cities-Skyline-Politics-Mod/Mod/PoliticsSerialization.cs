@@ -22,7 +22,7 @@ namespace PoliticsMod
     public class PoliticsSerialization : SerializableDataExtensionBase
     {
         public const string DataId = "PoliticsMod.v1";
-        public const uint   DataVersion = 6;
+        public const uint   DataVersion = 7;
 
         public override void OnLoadData()
         {

@@ -28,6 +28,10 @@ namespace PoliticsMod
         public Color32 Color;
         public Vector3 Ideology;                // -1..+1 per axis
         public DistrictPolicies.Policies[] VanillaPolicies;
+        // Policies the party will REPEAL when in the coalition, regardless of
+        // who enacted them. Mutually exclusive with VanillaPolicies (the editor
+        // enforces this). Null / empty = no opposed policies.
+        public DistrictPolicies.Policies[] OpposedPolicies;
         public PolicyModifiers Modifiers;
     }
 }

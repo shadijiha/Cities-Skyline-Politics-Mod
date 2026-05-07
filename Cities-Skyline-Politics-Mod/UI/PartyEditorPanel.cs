@@ -312,16 +312,15 @@ namespace PoliticsMod
 
             UpdateIdeologyLabels(party);
 
-            // --- Vanilla policy checkboxes ---
+            // --- Vanilla policy tiles ---
             var polHdr = _formPanel.AddUIComponent<UILabel>();
-            polHdr.text = "Supported policies";
+            polHdr.text = "Policies  (click to cycle: neutral -> support -> oppose)";
             polHdr.textScale = 0.95f;
             polHdr.relativePosition = new Vector3(10, y);
             y += 22f;
 
             _policyEnumCache = GetInterestingPolicies();
             _policyChecks = new UICheckBox[_policyEnumCache.Length]; // kept for compat (unused for tiles)
-            var partySet = new HashSet<DistrictPolicies.Policies>(party.VanillaPolicies ?? new DistrictPolicies.Policies[0]);
 
             // Scrollable sub-panel for policy tiles so the main form stays compact.
             const float policyBoxHeight = 220f;
@@ -372,7 +371,7 @@ namespace PoliticsMod
                 var policy = _policyEnumCache[i];
                 BuildPolicyTile(policyScroll,
                     2 + col * colW, 2 + row * rowH,
-                    tileSize, policy, partySet.Contains(policy), party);
+                    tileSize, policy, GetPartyPolicyStance(party, policy), party);
             }
             y += policyBoxHeight + 10f;
 
@@ -465,39 +464,64 @@ namespace PoliticsMod
             return list.ToArray();
         }
 
+        private static PolicyStance GetPartyPolicyStance(PartyDef party, DistrictPolicies.Policies policy)
+        {
+            if (party.VanillaPolicies != null)
+                foreach (var p in party.VanillaPolicies)
+                    if (p == policy) return PolicyStance.Support;
+            if (party.OpposedPolicies != null)
+                foreach (var p in party.OpposedPolicies)
+                    if (p == policy) return PolicyStance.Oppose;
+            return PolicyStance.Neutral;
+        }
+
+        private static void SetPartyPolicyStance(PartyDef party, DistrictPolicies.Policies policy, PolicyStance stance)
+        {
+            // Keep the two lists mutually exclusive: a policy can be in at
+            // most one of Vanilla (Support) / Opposed (Oppose), never both.
+            var sup = new HashSet<DistrictPolicies.Policies>(party.VanillaPolicies ?? new DistrictPolicies.Policies[0]);
+            var opp = new HashSet<DistrictPolicies.Policies>(party.OpposedPolicies ?? new DistrictPolicies.Policies[0]);
+            sup.Remove(policy);
+            opp.Remove(policy);
+            if (stance == PolicyStance.Support) sup.Add(policy);
+            else if (stance == PolicyStance.Oppose) opp.Add(policy);
+
+            var supArr = new DistrictPolicies.Policies[sup.Count]; int i = 0;
+            foreach (var p in sup) supArr[i++] = p;
+            var oppArr = new DistrictPolicies.Policies[opp.Count]; i = 0;
+            foreach (var p in opp) oppArr[i++] = p;
+            party.VanillaPolicies = supArr;
+            party.OpposedPolicies = oppArr;
+        }
+
         private static void TogglePolicyOnParty(PartyDef party, DistrictPolicies.Policies policy, bool on)
         {
-            var set = new HashSet<DistrictPolicies.Policies>(party.VanillaPolicies ?? new DistrictPolicies.Policies[0]);
-            if (on) set.Add(policy); else set.Remove(policy);
-            var arr = new DistrictPolicies.Policies[set.Count];
-            int i = 0;
-            foreach (var p in set) arr[i++] = p;
-            party.VanillaPolicies = arr;
+            // Legacy helper retained for any older callers; routes to the new
+            // stance setter. on=true -> Support, on=false -> Neutral.
+            SetPartyPolicyStance(party, policy, on ? PolicyStance.Support : PolicyStance.Neutral);
         }
 
         /// <summary>
         /// Build a single clickable policy "tile" - an icon + label styled like
-        /// the vanilla policy buttons, with a selected-state frame when the
-        /// party supports this policy. Clicking toggles.
+        /// the vanilla policy buttons. Click cycles the party's stance on this
+        /// policy: Neutral -> Support -> Oppose -> Neutral.
+        ///   Neutral = grey border, don't touch when elected
+        ///   Support = green-tinted selected border, enact when elected
+        ///   Oppose  = red-tinted selected border, repeal when elected
         /// </summary>
         private UIButton BuildPolicyTile(UIComponent parent, float x, float y, float size,
                                          DistrictPolicies.Policies policy,
-                                         bool initialSelected,
+                                         PolicyStance initialStance,
                                          PartyDef party)
         {
             var btn = parent.AddUIComponent<UIButton>();
             btn.relativePosition = new Vector3(x, y);
             btn.size = new Vector2(size, size);
-            string initBg = initialSelected ? "ButtonMenuFocused" : "ButtonMenu";
-            btn.normalBgSprite   = initBg;
             btn.hoveredBgSprite  = "ButtonMenuHovered";
             btn.pressedBgSprite  = "ButtonMenuPressed";
-            btn.focusedBgSprite  = initBg;   // tracks selection, not focus
-            btn.disabledBgSprite = initBg;
             btn.text = "";
-            btn.tooltip = FormatPolicyName(policy);
 
-            // Icon - use the vanilla "IconPolicy<Name>" sprite convention.
+            // Icon - vanilla "IconPolicy<Name>" sprite convention.
             var icon = btn.AddUIComponent<UISprite>();
             icon.size = new Vector2(size * 0.8f, size * 0.8f);
             icon.relativePosition = new Vector3((size - icon.width) / 2f,
@@ -506,26 +530,55 @@ namespace PoliticsMod
             icon.atlas = parent.GetUIView().defaultAtlas;
             icon.spriteName = spriteName;
 
-            // No label under the icon - would be too cramped at small sizes.
-            // The tooltip already shows the full policy name on hover.
+            ApplyStanceToTile(btn, policy, initialStance);
 
             var capturedPolicy = policy;
             var capturedParty = party;
             btn.eventClick += (c, p) =>
             {
-                var existing = new HashSet<DistrictPolicies.Policies>(
-                    capturedParty.VanillaPolicies ?? new DistrictPolicies.Policies[0]);
-                bool nowSelected = !existing.Contains(capturedPolicy);
-                TogglePolicyOnParty(capturedParty, capturedPolicy, nowSelected);
-                string bg = nowSelected ? "ButtonMenuFocused" : "ButtonMenu";
-                btn.normalBgSprite  = bg;
-                btn.focusedBgSprite = bg;  // must match, otherwise the click-focused state
-                                           // overrides our visual and "sticks" on selected.
-                btn.disabledBgSprite = bg;
-                // Drop focus so the button returns to its normal sprite immediately.
+                var cur = GetPartyPolicyStance(capturedParty, capturedPolicy);
+                var next = cur == PolicyStance.Neutral ? PolicyStance.Support
+                         : cur == PolicyStance.Support ? PolicyStance.Oppose
+                         : PolicyStance.Neutral;
+                SetPartyPolicyStance(capturedParty, capturedPolicy, next);
+                ApplyStanceToTile(btn, capturedPolicy, next);
                 btn.Unfocus();
             };
             return btn;
+        }
+
+        // Apply the visual state + tooltip for a given stance. Colouring is
+        // done via UIButton.color (tints the background sprite).
+        private static void ApplyStanceToTile(UIButton btn, DistrictPolicies.Policies policy, PolicyStance stance)
+        {
+            string bg;
+            Color32 col;
+            string tip;
+            switch (stance)
+            {
+                case PolicyStance.Support:
+                    bg = "ButtonMenuFocused";
+                    col = new Color32(120, 220, 130, 255); // green
+                    tip = FormatPolicyName(policy) + "\nSupport: will be enacted when elected";
+                    break;
+                case PolicyStance.Oppose:
+                    bg = "ButtonMenuFocused";
+                    col = new Color32(230, 90, 90, 255);   // red
+                    tip = FormatPolicyName(policy) + "\nOppose: will be repealed when elected";
+                    break;
+                default:
+                    bg = "ButtonMenu";
+                    col = new Color32(255, 255, 255, 255);
+                    tip = FormatPolicyName(policy) + "\nNeutral: left alone when elected";
+                    break;
+            }
+            btn.normalBgSprite   = bg;
+            btn.focusedBgSprite  = bg; // keep visual stable through focus
+            btn.disabledBgSprite = bg;
+            btn.color            = col;
+            btn.focusedColor     = col;
+            btn.disabledColor    = col;
+            btn.tooltip          = tip;
         }
 
         /// <summary>Split a CamelCase enum name into spaced words.</summary>
@@ -797,6 +850,7 @@ namespace PoliticsMod
                 Color = pick,
                 Ideology = Vector3.zero,
                 VanillaPolicies = new DistrictPolicies.Policies[0],
+                OpposedPolicies = new DistrictPolicies.Policies[0],
                 Modifiers = new PolicyModifiers { PollutionMultiplier = 1.0f }
             };
             var newList = new PartyDef[Config.Parties.Length + 1];

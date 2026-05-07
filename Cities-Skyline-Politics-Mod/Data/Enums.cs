@@ -58,4 +58,15 @@ namespace PoliticsMod
         LowLandValue,
         NoiseOrTrash,
     }
+
+    // How a party feels about a given vanilla policy.
+    //   Neutral = don't touch when elected
+    //   Support = enact when elected
+    //   Oppose  = repeal when elected, regardless of who enacted it
+    public enum PolicyStance
+    {
+        Neutral = 0,
+        Support = 1,
+        Oppose  = 2,
+    }
 }
