@@ -551,27 +551,36 @@ namespace PoliticsMod
         // done via UIButton.color (tints the background sprite).
         private static void ApplyStanceToTile(UIButton btn, DistrictPolicies.Policies policy, PolicyStance stance)
         {
+            // For Support / Oppose we swap to EmptySprite (plain colour fill)
+            // so the tint renders at full brightness. ButtonMenuFocused is a
+            // dark panel sprite - any tint applied to it gets multiplied
+            // down into a muddy / grey-looking colour, which is why the
+            // previous "red" came out looking desaturated.
             string bg;
+            string hoverBg;
+            string pressBg;
             Color32 col;
             string tip;
             switch (stance)
             {
                 case PolicyStance.Support:
-                    bg = "ButtonMenuFocused";
-                    col = new Color32(120, 220, 130, 255); // green
+                    bg      = "EmptySprite";
+                    hoverBg = "EmptySprite";
+                    pressBg = "EmptySprite";
+                    col = new Color32( 60, 200,  80, 255); // clean green fill
                     tip = FormatPolicyName(policy) + "\nSupport: will be enacted when elected";
                     break;
                 case PolicyStance.Oppose:
-                    bg = "ButtonMenuFocused";
-                    // ButtonMenuFocused is a dark sprite; UIButton.color
-                    // multiplies into it, so we push R close to max and
-                    // knock the other channels down for a clearly red tint
-                    // that matches the intensity of the Support green.
-                    col = new Color32(255, 55, 55, 255);
+                    bg      = "EmptySprite";
+                    hoverBg = "EmptySprite";
+                    pressBg = "EmptySprite";
+                    col = new Color32(220,  40,  40, 255); // clean red fill
                     tip = FormatPolicyName(policy) + "\nOppose: will be repealed when elected";
                     break;
                 default:
-                    bg = "ButtonMenu";
+                    bg      = "ButtonMenu";
+                    hoverBg = "ButtonMenuHovered";
+                    pressBg = "ButtonMenuPressed";
                     col = new Color32(255, 255, 255, 255);
                     tip = FormatPolicyName(policy) + "\nNeutral: left alone when elected";
                     break;
@@ -579,6 +588,8 @@ namespace PoliticsMod
             btn.normalBgSprite   = bg;
             btn.focusedBgSprite  = bg; // keep visual stable through focus
             btn.disabledBgSprite = bg;
+            btn.hoveredBgSprite  = hoverBg;
+            btn.pressedBgSprite  = pressBg;
             // Tint every state so hovering / pressing an opposed or supported
             // tile keeps the colour instead of reverting to the default grey
             // tint of ButtonMenuHovered / ButtonMenuPressed.

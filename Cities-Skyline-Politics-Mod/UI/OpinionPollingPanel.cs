@@ -155,11 +155,12 @@ namespace PoliticsMod
 
                 var lbl = _legendRow.AddUIComponent<UILabel>();
                 lbl.textScale = 0.78f;
-                lbl.text = p.ShortName + " - " + p.FullName;
+                lbl.text = p.ShortName;
+                lbl.tooltip = p.FullName;
                 lbl.relativePosition = new Vector3(x + 18, 3);
-                lbl.size = new Vector2(200f, 18f);
+                lbl.size = new Vector2(60f, 18f);
 
-                x += 18f + Mathf.Max(80f, (p.ShortName.Length + p.FullName.Length) * 5.2f);
+                x += 18f + Mathf.Max(40f, p.ShortName.Length * 8f);
             }
         }
 
