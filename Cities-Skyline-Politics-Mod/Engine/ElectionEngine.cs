@@ -801,12 +801,14 @@ namespace PoliticsMod
             }
 
             // Incumbency bump: happy voters (health + wellbeing both decent)
-            // sometimes reward the coalition.
+            // sometimes reward the coalition. Probability is user-tunable
+            // via RuntimeConfig.IncumbencyBonus (default 0.10, 0 = off).
             int happiness = Citizen.GetHappiness(c.m_health, c.m_wellbeing);
             bool happy = happiness >= 60;
             var st = PoliticsState.Instance;
             if (happy && st != null && st.CoalitionPartyIds != null && st.CoalitionPartyIds.Count > 0
-                && _rng.NextDouble() < 0.10)
+                && RuntimeConfig.IncumbencyBonus > 0f
+                && _rng.NextDouble() < RuntimeConfig.IncumbencyBonus)
             {
                 best = st.CoalitionPartyIds[_rng.Next(0, st.CoalitionPartyIds.Count)];
                 bestReason = Grievance.None; // incumbency = ideology-like

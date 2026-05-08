@@ -54,7 +54,7 @@ namespace PoliticsMod
         {
             base.Start();
             width = 560;
-            height = 660;
+            height = 720;
             backgroundSprite = "MenuPanel2";
             canFocus = true;
             isInteractive = true;
@@ -132,6 +132,28 @@ namespace PoliticsMod
                 "      about 6 consecutive deficit weeks.\n" +
                 "  2 = twice as sensitive. 3 = maximum.\n" +
                 "Applies on top of per-voter trait biases.");
+
+            y += 6f;
+            y = AddSection("Incumbency", y);
+            y = AddCustomRow(y, "Incumbency bonus",
+                RuntimeConfig.MinIncumbency, RuntimeConfig.MaxIncumbency, 0.01f,
+                () => RuntimeConfig.IncumbencyBonus,
+                v => RuntimeConfig.IncumbencyBonus = v,
+                "0.00",
+                "Probability a HAPPY voter rewards the sitting coalition with\n" +
+                "their vote instead of following ideology / grievances.\n" +
+                "Only applies to voters whose happiness is 60 or higher.\n" +
+                "\n" +
+                "  0.00 = incumbency has no effect; voters always pick on fit.\n" +
+                "  0.10 = default. 1 in 10 happy voters flip to the gov.\n" +
+                "  0.25 = quarter of happy voters auto-renew the gov.\n" +
+                "  0.50 = half of happy voters auto-renew the gov; strong\n" +
+                "         advantage for whoever's in power while the city is\n" +
+                "         thriving.\n" +
+                "\n" +
+                "Tip: set low (<=0.05) if you want every election to feel like\n" +
+                "an open contest, or high (>=0.25) to simulate hard-to-beat\n" +
+                "incumbents.");
 
             // Reset button
             var reset = AddUIComponent<UIButton>();
