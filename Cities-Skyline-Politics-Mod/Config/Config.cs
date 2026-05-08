@@ -49,7 +49,7 @@ namespace PoliticsMod
             get { return (ParliamentSeats / 2) + 1; }
         }
 
-        public const int MinPopulationForElections  = 3000;  // elections only kick in after this
+        public const int MinPopulationForElections  = 0;    // 0 = no gate; parliament still floors at MinParliamentSeats
         // Default values for the runtime-editable fields below. The *actual*
         // values used by the simulation live in RuntimeConfig and are editable
         // via the in-game panel and persisted in the savegame.
@@ -93,8 +93,13 @@ namespace PoliticsMod
                 VanillaPolicies = new[]
                 {
                     DistrictPolicies.Policies.Recycling,
-                    DistrictPolicies.Policies.SmokeDetectors,
-                    DistrictPolicies.Policies.FreeTransport
+                    DistrictPolicies.Policies.FreeTransport,
+                    DistrictPolicies.Policies.EncourageBiking
+                },
+                OpposedPolicies = new[]
+                {
+                    DistrictPolicies.Policies.BigBusiness,
+                    DistrictPolicies.Policies.HighriseBan
                 },
                 Modifiers = new PolicyModifiers
                 {
@@ -124,6 +129,10 @@ namespace PoliticsMod
                     DistrictPolicies.Policies.ExtraInsulation,
                     DistrictPolicies.Policies.FreeTransport
                 },
+                OpposedPolicies = new[]
+                {
+                    DistrictPolicies.Policies.BigBusiness
+                },
                 Modifiers = new PolicyModifiers
                 {
                     TaxDeltaRes = -1, TaxDeltaCom = +2, TaxDeltaInd = +2, TaxDeltaOff = +1,
@@ -150,7 +159,12 @@ namespace PoliticsMod
                 {
                     DistrictPolicies.Policies.BigBusiness,
                     DistrictPolicies.Policies.HighTechHousing,
-                    DistrictPolicies.Policies.Recycling
+                    DistrictPolicies.Policies.SmallBusiness
+                },
+                OpposedPolicies = new[]
+                {
+                    DistrictPolicies.Policies.HeavyTrafficBan,
+                    DistrictPolicies.Policies.HighriseBan
                 },
                 Modifiers = new PolicyModifiers
                 {
@@ -176,7 +190,12 @@ namespace PoliticsMod
                 Ideology = new Vector3(+0.7f, +0.5f, +0.3f),
                 VanillaPolicies = new[]
                 {
-                    DistrictPolicies.Policies.HeavyTrafficBan,
+                    DistrictPolicies.Policies.BigBusiness,
+                },
+                OpposedPolicies = new[]
+                {
+                    DistrictPolicies.Policies.FreeTransport,
+                    DistrictPolicies.Policies.EducationBoost
                 },
                 Modifiers = new PolicyModifiers
                 {
@@ -204,6 +223,12 @@ namespace PoliticsMod
                 {
                     DistrictPolicies.Policies.OldTown,
                     DistrictPolicies.Policies.HeavyTrafficBan,
+                    DistrictPolicies.Policies.SmallBusiness,
+                },
+                OpposedPolicies = new[]
+                {
+                    DistrictPolicies.Policies.BigBusiness,
+                    DistrictPolicies.Policies.HighTechHousing
                 },
                 Modifiers = new PolicyModifiers
                 {
@@ -232,6 +257,10 @@ namespace PoliticsMod
                     DistrictPolicies.Policies.FreeTransport,
                     DistrictPolicies.Policies.EducationBoost,
                     DistrictPolicies.Policies.ExtraInsulation
+                },
+                OpposedPolicies = new[]
+                {
+                    DistrictPolicies.Policies.BigBusiness
                 },
                 Modifiers = new PolicyModifiers
                 {

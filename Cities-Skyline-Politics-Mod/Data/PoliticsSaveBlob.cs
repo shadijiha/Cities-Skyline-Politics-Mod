@@ -35,6 +35,10 @@ namespace PoliticsMod
         public float RcTermLengthDays;
         public float RcCampaignLengthDays;
         public float RcReElectionCooldownDays;
+        // v8: deficit-pressure multiplier. Sentinel -1f = "not saved in this file".
+        public float RcDeficitPressureMultiplier = -1f;
+        // v9: incumbency bonus probability. Sentinel -1f = "not saved".
+        public float RcIncumbencyBonus = -1f;
         // v3: persisted party list (overrides Config.Parties defaults)
         public List<PartyBlob> Parties = new List<PartyBlob>();
         // v4: voter trait biases
@@ -60,6 +64,8 @@ namespace PoliticsMod
                 RcTermLengthDays         = RuntimeConfig.TermLengthDays,
                 RcCampaignLengthDays     = RuntimeConfig.CampaignLengthDays,
                 RcReElectionCooldownDays = RuntimeConfig.ReElectionCooldownDays,
+                RcDeficitPressureMultiplier = RuntimeConfig.DeficitPressureMultiplier,
+                RcIncumbencyBonus           = RuntimeConfig.IncumbencyBonus,
             };
             foreach (var p in st.AppliedVanillaPolicies) b.AppliedVanillaPolicies.Add((int)p);
             // v3: capture parties
@@ -138,6 +144,8 @@ namespace PoliticsMod
             if (RcTermLengthDays     > 0f) RuntimeConfig.TermLengthDays         = RcTermLengthDays;
             if (RcCampaignLengthDays > 0f) RuntimeConfig.CampaignLengthDays     = RcCampaignLengthDays;
             if (RcReElectionCooldownDays >= 0f) RuntimeConfig.ReElectionCooldownDays = RcReElectionCooldownDays;
+            if (RcDeficitPressureMultiplier >= 0f) RuntimeConfig.DeficitPressureMultiplier = RcDeficitPressureMultiplier;
+            if (RcIncumbencyBonus           >= 0f) RuntimeConfig.IncumbencyBonus           = RcIncumbencyBonus;
             RuntimeConfig.ClampAll();
 
             // v3: restore parties (overrides Config.Parties defaults)
@@ -231,6 +239,18 @@ namespace PoliticsMod
             {
                 s.WriteBool(MinimalChirps);
             }
+
+            // v8 additions: deficit pressure multiplier
+            if (s.version >= 8)
+            {
+                s.WriteFloat(RcDeficitPressureMultiplier);
+            }
+
+            // v9 additions: incumbency bonus
+            if (s.version >= 9)
+            {
+                s.WriteFloat(RcIncumbencyBonus);
+            }
         }
 
         public void Deserialize(DataSerializer s)
@@ -315,6 +335,26 @@ namespace PoliticsMod
             if (s.version >= 6)
             {
                 MinimalChirps = s.ReadBool();
+            }
+
+            // v8: deficit pressure multiplier
+            if (s.version >= 8)
+            {
+                RcDeficitPressureMultiplier = s.ReadFloat();
+            }
+            else
+            {
+                RcDeficitPressureMultiplier = -1f; // sentinel: leave RuntimeConfig default
+            }
+
+            // v9: incumbency bonus
+            if (s.version >= 9)
+            {
+                RcIncumbencyBonus = s.ReadFloat();
+            }
+            else
+            {
+                RcIncumbencyBonus = -1f;
             }
         }
 

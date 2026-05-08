@@ -74,9 +74,20 @@ namespace PoliticsMod
 
             float dayDelta = (float)delta;
 
-            // Only run politics if city has grown enough
-            int population = CitizenManagerUtil.GetPopulation();
-            if (population < Config.MinPopulationForElections)
+            // ---- Daily opinion poll ----
+            // We fire one poll per distinct in-game day, so fractional-day
+            // ticks don't spam samples. The day number comes from the
+            // current game time, rounded down.
+            int dayToday = (int)nowDays;
+            if (OpinionPolling.LastPolledDay != dayToday)
+            {
+                try { OpinionPolling.RunDailyPoll(dayToday); }
+                catch (Exception ex) { PoliticsUserMod.Log("Poll failed: " + ex.Message); }
+            }
+
+            // Population gate (0 = off)
+            if (Config.MinPopulationForElections > 0 &&
+                CitizenManagerUtil.GetPopulation() < Config.MinPopulationForElections)
             {
                 st.Phase = ElectionPhase.Idle;
                 return;
@@ -121,8 +132,11 @@ namespace PoliticsMod
                 }
                 catch { /* ignore - early frame before managers are ready */ }
             }
-            // Maybe post a citizen deficit chirp
+            // Maybe post a citizen deficit chirp. Multiplier=0 silences the
+            // whole deficit subsystem, including these chirps, so the
+            // "0 = off" tooltip matches reality.
             if (ElectionEngine.DeficitWeeks > 0 &&
+                RuntimeConfig.DeficitPressureMultiplier > 0f &&
                 ElectionEngine.DaysSinceLastDeficitChirp >= 10f &&
                 !DebugFlags.MinimalChirps)
             {

@@ -22,6 +22,9 @@ namespace PoliticsMod
     public static class ElectionEngine
     {
         private static System.Random _rng = new System.Random();
+        // Expose the shared RNG so auxiliary samplers (opinion polling) use
+        // the same random stream as the election engine.
+        public static System.Random Rng { get { return _rng; } }
         // Temp storage for the last full-sample's per-grievance vote counts.
         // Picked up by RunElection and stored on the ElectionResult.
         private static int[] _lastGrievanceTally;
@@ -36,6 +39,7 @@ namespace PoliticsMod
         /// <summary>
         /// Current deficit pressure on voters' economic axis, 0..0.35.
         /// Kicks in at 1 week of deficit, saturates around 6 weeks.
+        /// Scaled by RuntimeConfig.DeficitPressureMultiplier (1.0 = default).
         /// </summary>
         public static float DeficitPressure
         {
@@ -43,7 +47,7 @@ namespace PoliticsMod
             {
                 if (DeficitWeeks <= 0) return 0f;
                 float t = Mathf.Clamp01(DeficitWeeks / 6f);
-                return 0.05f + 0.30f * t;
+                return (0.05f + 0.30f * t) * RuntimeConfig.DeficitPressureMultiplier;
             }
         }
 
@@ -692,7 +696,7 @@ namespace PoliticsMod
         /// Sets <paramref name="reason"/> to the dominant grievance that
         /// drove the choice, or Grievance.None if pure ideology.
         /// </summary>
-        private static int DecideVote(ref Citizen c, BuildingManager bm, out Grievance reason)
+        public static int DecideVote(ref Citizen c, BuildingManager bm, out Grievance reason)
         {
             reason = Grievance.None;
 
@@ -797,12 +801,14 @@ namespace PoliticsMod
             }
 
             // Incumbency bump: happy voters (health + wellbeing both decent)
-            // sometimes reward the coalition.
+            // sometimes reward the coalition. Probability is user-tunable
+            // via RuntimeConfig.IncumbencyBonus (default 0.10, 0 = off).
             int happiness = Citizen.GetHappiness(c.m_health, c.m_wellbeing);
             bool happy = happiness >= 60;
             var st = PoliticsState.Instance;
             if (happy && st != null && st.CoalitionPartyIds != null && st.CoalitionPartyIds.Count > 0
-                && _rng.NextDouble() < 0.10)
+                && RuntimeConfig.IncumbencyBonus > 0f
+                && _rng.NextDouble() < RuntimeConfig.IncumbencyBonus)
             {
                 best = st.CoalitionPartyIds[_rng.Next(0, st.CoalitionPartyIds.Count)];
                 bestReason = Grievance.None; // incumbency = ideology-like
@@ -827,16 +833,54 @@ namespace PoliticsMod
             if (st.CoalitionPartyIds == null || st.CoalitionPartyIds.Count == 0) return;
 
             var dm = Singleton<DistrictManager>.instance;
+
+            // Opposed policies across the coalition. Opposition WINS over
+            // support from any other coalition party - if anyone in the
+            // coalition opposes a policy, it will be repealed.
+            var opposed = new HashSet<DistrictPolicies.Policies>();
+            foreach (var id in st.CoalitionPartyIds)
+            {
+                var arr = Config.Parties[id].OpposedPolicies;
+                if (arr == null) continue;
+                foreach (var p in arr) opposed.Add(p);
+            }
+
+            // Wanted = union of supported platforms, minus anything opposed.
             var wanted = new HashSet<DistrictPolicies.Policies>();
             foreach (var id in st.CoalitionPartyIds)
-                foreach (var p in Config.Parties[id].VanillaPolicies)
-                    wanted.Add(p);
+            {
+                var arr = Config.Parties[id].VanillaPolicies;
+                if (arr == null) continue;
+                foreach (var p in arr)
+                    if (!opposed.Contains(p)) wanted.Add(p);
+            }
 
             // -------- Repeals: previous policies NOT in the new platform ----
             foreach (var p in prevApplied)
             {
                 if (wanted.Contains(p)) continue;
                 PoliticsUserMod.Log("Repealed policy: " + p);
+                AnnounceRepeal(p, st);
+            }
+
+            // -------- Explicit repeals for opposed policies not already handled.
+            // These may have been set by the player or by a process outside
+            // the mod's previous coalition - the opposing coalition still
+            // strikes them down on taking office.
+            foreach (var p in opposed)
+            {
+                if (prevApplied.Contains(p)) continue; // already announced above
+                var capture = p;
+                try
+                {
+                    Singleton<SimulationManager>.instance.AddAction(() =>
+                    {
+                        try { Singleton<DistrictManager>.instance.UnsetCityPolicy(capture); }
+                        catch (Exception ex) { PoliticsUserMod.Log("UnsetCityPolicy(" + capture + ") failed: " + ex.Message); }
+                    });
+                }
+                catch { /* ignore */ }
+                PoliticsUserMod.Log("Repealed (opposed) policy: " + p);
                 AnnounceRepeal(p, st);
             }
 
@@ -1032,6 +1076,20 @@ namespace PoliticsMod
         /// </summary>
         public static void AnnounceRepeal(DistrictPolicies.Policies policy, PoliticsState st)
         {
+            // Pre-compute which parties support or oppose this exact policy
+            // by platform, so repeal votes reflect stance explicitly.
+            var supporters = new HashSet<int>();
+            var opponents  = new HashSet<int>();
+            for (int i = 0; i < Config.Parties.Length; i++)
+            {
+                var sup = Config.Parties[i].VanillaPolicies;
+                if (sup != null)
+                    foreach (var vp in sup) if (vp == policy) { supporters.Add(i); break; }
+                var opp = Config.Parties[i].OpposedPolicies;
+                if (opp != null)
+                    foreach (var vp in opp) if (vp == policy) { opponents.Add(i); break; }
+            }
+
             // Simple tally: coalition parties mostly yes on repeal, opposition varies.
             int yes = 0, no = 0, abstain = 0;
             Vector3 coalCenter = Vector3.zero;
@@ -1043,7 +1101,17 @@ namespace PoliticsMod
                 int seats = (i < st.CurrentSeats.Length) ? st.CurrentSeats[i] : 0;
                 if (seats <= 0) continue;
                 float yesShare, abstainShare;
-                if (coalSet.Contains(i)) { yesShare = 0.85f; abstainShare = 0.08f; }
+                if (opponents.Contains(i))
+                {
+                    // Explicit opponents always cheer a repeal.
+                    yesShare = 0.95f; abstainShare = 0.03f;
+                }
+                else if (supporters.Contains(i))
+                {
+                    // Explicit supporters fight the repeal.
+                    yesShare = 0.05f; abstainShare = 0.05f;
+                }
+                else if (coalSet.Contains(i)) { yesShare = 0.85f; abstainShare = 0.08f; }
                 else
                 {
                     float dist = (Config.Parties[i].Ideology - coalCenter).magnitude;
@@ -1106,13 +1174,22 @@ namespace PoliticsMod
 
         public static void AnnounceBill(DistrictPolicies.Policies policy, PoliticsState st)
         {
-            // Find supporter parties (the ones who had this policy in their platform)
+            // Find supporter and opponent parties (by platform).
             var supporters = new List<int>();
+            var opponents  = new HashSet<int>();
             for (int i = 0; i < Config.Parties.Length; i++)
             {
-                foreach (var vp in Config.Parties[i].VanillaPolicies)
+                var sup = Config.Parties[i].VanillaPolicies;
+                if (sup != null)
                 {
-                    if (vp == policy) { supporters.Add(i); break; }
+                    foreach (var vp in sup)
+                        if (vp == policy) { supporters.Add(i); break; }
+                }
+                var opp = Config.Parties[i].OpposedPolicies;
+                if (opp != null)
+                {
+                    foreach (var vp in opp)
+                        if (vp == policy) { opponents.Add(i); break; }
                 }
             }
 
@@ -1140,7 +1217,14 @@ namespace PoliticsMod
                 if (seats <= 0) continue;
 
                 float yesShare, abstainShare;
-                if (supporterSet.Contains(i))
+                if (opponents.Contains(i))
+                {
+                    // Party explicitly opposes this policy -> votes NO almost
+                    // unanimously, even if they're in the coalition.
+                    yesShare     = 0.02f;
+                    abstainShare = 0.05f;
+                }
+                else if (supporterSet.Contains(i))
                 {
                     yesShare     = 0.95f;
                     abstainShare = 0.03f;

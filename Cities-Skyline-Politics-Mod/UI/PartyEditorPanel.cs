@@ -312,16 +312,15 @@ namespace PoliticsMod
 
             UpdateIdeologyLabels(party);
 
-            // --- Vanilla policy checkboxes ---
+            // --- Vanilla policy tiles ---
             var polHdr = _formPanel.AddUIComponent<UILabel>();
-            polHdr.text = "Supported policies";
+            polHdr.text = "Policies  (click to cycle: neutral -> support -> oppose)";
             polHdr.textScale = 0.95f;
             polHdr.relativePosition = new Vector3(10, y);
             y += 22f;
 
             _policyEnumCache = GetInterestingPolicies();
             _policyChecks = new UICheckBox[_policyEnumCache.Length]; // kept for compat (unused for tiles)
-            var partySet = new HashSet<DistrictPolicies.Policies>(party.VanillaPolicies ?? new DistrictPolicies.Policies[0]);
 
             // Scrollable sub-panel for policy tiles so the main form stays compact.
             const float policyBoxHeight = 220f;
@@ -372,7 +371,7 @@ namespace PoliticsMod
                 var policy = _policyEnumCache[i];
                 BuildPolicyTile(policyScroll,
                     2 + col * colW, 2 + row * rowH,
-                    tileSize, policy, partySet.Contains(policy), party);
+                    tileSize, policy, GetPartyPolicyStance(party, policy), party);
             }
             y += policyBoxHeight + 10f;
 
@@ -465,39 +464,64 @@ namespace PoliticsMod
             return list.ToArray();
         }
 
+        private static PolicyStance GetPartyPolicyStance(PartyDef party, DistrictPolicies.Policies policy)
+        {
+            if (party.VanillaPolicies != null)
+                foreach (var p in party.VanillaPolicies)
+                    if (p == policy) return PolicyStance.Support;
+            if (party.OpposedPolicies != null)
+                foreach (var p in party.OpposedPolicies)
+                    if (p == policy) return PolicyStance.Oppose;
+            return PolicyStance.Neutral;
+        }
+
+        private static void SetPartyPolicyStance(PartyDef party, DistrictPolicies.Policies policy, PolicyStance stance)
+        {
+            // Keep the two lists mutually exclusive: a policy can be in at
+            // most one of Vanilla (Support) / Opposed (Oppose), never both.
+            var sup = new HashSet<DistrictPolicies.Policies>(party.VanillaPolicies ?? new DistrictPolicies.Policies[0]);
+            var opp = new HashSet<DistrictPolicies.Policies>(party.OpposedPolicies ?? new DistrictPolicies.Policies[0]);
+            sup.Remove(policy);
+            opp.Remove(policy);
+            if (stance == PolicyStance.Support) sup.Add(policy);
+            else if (stance == PolicyStance.Oppose) opp.Add(policy);
+
+            var supArr = new DistrictPolicies.Policies[sup.Count]; int i = 0;
+            foreach (var p in sup) supArr[i++] = p;
+            var oppArr = new DistrictPolicies.Policies[opp.Count]; i = 0;
+            foreach (var p in opp) oppArr[i++] = p;
+            party.VanillaPolicies = supArr;
+            party.OpposedPolicies = oppArr;
+        }
+
         private static void TogglePolicyOnParty(PartyDef party, DistrictPolicies.Policies policy, bool on)
         {
-            var set = new HashSet<DistrictPolicies.Policies>(party.VanillaPolicies ?? new DistrictPolicies.Policies[0]);
-            if (on) set.Add(policy); else set.Remove(policy);
-            var arr = new DistrictPolicies.Policies[set.Count];
-            int i = 0;
-            foreach (var p in set) arr[i++] = p;
-            party.VanillaPolicies = arr;
+            // Legacy helper retained for any older callers; routes to the new
+            // stance setter. on=true -> Support, on=false -> Neutral.
+            SetPartyPolicyStance(party, policy, on ? PolicyStance.Support : PolicyStance.Neutral);
         }
 
         /// <summary>
         /// Build a single clickable policy "tile" - an icon + label styled like
-        /// the vanilla policy buttons, with a selected-state frame when the
-        /// party supports this policy. Clicking toggles.
+        /// the vanilla policy buttons. Click cycles the party's stance on this
+        /// policy: Neutral -> Support -> Oppose -> Neutral.
+        ///   Neutral = grey border, don't touch when elected
+        ///   Support = green-tinted selected border, enact when elected
+        ///   Oppose  = red-tinted selected border, repeal when elected
         /// </summary>
         private UIButton BuildPolicyTile(UIComponent parent, float x, float y, float size,
                                          DistrictPolicies.Policies policy,
-                                         bool initialSelected,
+                                         PolicyStance initialStance,
                                          PartyDef party)
         {
             var btn = parent.AddUIComponent<UIButton>();
             btn.relativePosition = new Vector3(x, y);
             btn.size = new Vector2(size, size);
-            string initBg = initialSelected ? "ButtonMenuFocused" : "ButtonMenu";
-            btn.normalBgSprite   = initBg;
             btn.hoveredBgSprite  = "ButtonMenuHovered";
             btn.pressedBgSprite  = "ButtonMenuPressed";
-            btn.focusedBgSprite  = initBg;   // tracks selection, not focus
-            btn.disabledBgSprite = initBg;
             btn.text = "";
-            btn.tooltip = FormatPolicyName(policy);
 
-            // Icon - use the vanilla "IconPolicy<Name>" sprite convention.
+            // Icon - vanilla "IconPolicy<Name>" sprite convention.
             var icon = btn.AddUIComponent<UISprite>();
             icon.size = new Vector2(size * 0.8f, size * 0.8f);
             icon.relativePosition = new Vector3((size - icon.width) / 2f,
@@ -506,26 +530,75 @@ namespace PoliticsMod
             icon.atlas = parent.GetUIView().defaultAtlas;
             icon.spriteName = spriteName;
 
-            // No label under the icon - would be too cramped at small sizes.
-            // The tooltip already shows the full policy name on hover.
+            ApplyStanceToTile(btn, policy, initialStance);
 
             var capturedPolicy = policy;
             var capturedParty = party;
             btn.eventClick += (c, p) =>
             {
-                var existing = new HashSet<DistrictPolicies.Policies>(
-                    capturedParty.VanillaPolicies ?? new DistrictPolicies.Policies[0]);
-                bool nowSelected = !existing.Contains(capturedPolicy);
-                TogglePolicyOnParty(capturedParty, capturedPolicy, nowSelected);
-                string bg = nowSelected ? "ButtonMenuFocused" : "ButtonMenu";
-                btn.normalBgSprite  = bg;
-                btn.focusedBgSprite = bg;  // must match, otherwise the click-focused state
-                                           // overrides our visual and "sticks" on selected.
-                btn.disabledBgSprite = bg;
-                // Drop focus so the button returns to its normal sprite immediately.
+                var cur = GetPartyPolicyStance(capturedParty, capturedPolicy);
+                var next = cur == PolicyStance.Neutral ? PolicyStance.Support
+                         : cur == PolicyStance.Support ? PolicyStance.Oppose
+                         : PolicyStance.Neutral;
+                SetPartyPolicyStance(capturedParty, capturedPolicy, next);
+                ApplyStanceToTile(btn, capturedPolicy, next);
                 btn.Unfocus();
             };
             return btn;
+        }
+
+        // Apply the visual state + tooltip for a given stance. Colouring is
+        // done via UIButton.color (tints the background sprite).
+        private static void ApplyStanceToTile(UIButton btn, DistrictPolicies.Policies policy, PolicyStance stance)
+        {
+            // For Support / Oppose we swap to EmptySprite (plain colour fill)
+            // so the tint renders at full brightness. ButtonMenuFocused is a
+            // dark panel sprite - any tint applied to it gets multiplied
+            // down into a muddy / grey-looking colour, which is why the
+            // previous "red" came out looking desaturated.
+            string bg;
+            string hoverBg;
+            string pressBg;
+            Color32 col;
+            string tip;
+            switch (stance)
+            {
+                case PolicyStance.Support:
+                    bg      = "EmptySprite";
+                    hoverBg = "EmptySprite";
+                    pressBg = "EmptySprite";
+                    col = new Color32( 60, 200,  80, 255); // clean green fill
+                    tip = FormatPolicyName(policy) + "\nSupport: will be enacted when elected";
+                    break;
+                case PolicyStance.Oppose:
+                    bg      = "EmptySprite";
+                    hoverBg = "EmptySprite";
+                    pressBg = "EmptySprite";
+                    col = new Color32(220,  40,  40, 255); // clean red fill
+                    tip = FormatPolicyName(policy) + "\nOppose: will be repealed when elected";
+                    break;
+                default:
+                    bg      = "ButtonMenu";
+                    hoverBg = "ButtonMenuHovered";
+                    pressBg = "ButtonMenuPressed";
+                    col = new Color32(255, 255, 255, 255);
+                    tip = FormatPolicyName(policy) + "\nNeutral: left alone when elected";
+                    break;
+            }
+            btn.normalBgSprite   = bg;
+            btn.focusedBgSprite  = bg; // keep visual stable through focus
+            btn.disabledBgSprite = bg;
+            btn.hoveredBgSprite  = hoverBg;
+            btn.pressedBgSprite  = pressBg;
+            // Tint every state so hovering / pressing an opposed or supported
+            // tile keeps the colour instead of reverting to the default grey
+            // tint of ButtonMenuHovered / ButtonMenuPressed.
+            btn.color            = col;
+            btn.focusedColor     = col;
+            btn.disabledColor    = col;
+            btn.hoveredColor     = col;
+            btn.pressedColor     = col;
+            btn.tooltip          = tip;
         }
 
         /// <summary>Split a CamelCase enum name into spaced words.</summary>
@@ -797,6 +870,7 @@ namespace PoliticsMod
                 Color = pick,
                 Ideology = Vector3.zero,
                 VanillaPolicies = new DistrictPolicies.Policies[0],
+                OpposedPolicies = new DistrictPolicies.Policies[0],
                 Modifiers = new PolicyModifiers { PollutionMultiplier = 1.0f }
             };
             var newList = new PartyDef[Config.Parties.Length + 1];
@@ -804,6 +878,9 @@ namespace PoliticsMod
             newList[newIdx] = newParty;
             Config.Parties = newList;
             ResizePerPartyArrays();
+            // Poll history is indexed by party id at sample time; invalidate
+            // it so the graph doesn't mix old samples with new ones.
+            OpinionPolling.Reset();
             _selectedIdx = newIdx;
             RebuildList();
             RebuildForm();
@@ -814,23 +891,164 @@ namespace PoliticsMod
         {
             if (Config.Parties.Length <= MinParties) return;
             if (_selectedIdx < 0 || _selectedIdx >= Config.Parties.Length) return;
-            string removed = Config.Parties[_selectedIdx].ShortName;
+            int removedIdx = _selectedIdx;
+            string removed = Config.Parties[removedIdx].ShortName;
 
             var newList = new PartyDef[Config.Parties.Length - 1];
             int j = 0;
             for (int i = 0; i < Config.Parties.Length; i++)
             {
-                if (i == _selectedIdx) continue;
+                if (i == removedIdx) continue;
                 newList[j++] = Config.Parties[i];
             }
             // Reassign ids so they stay 0..N-1 contiguous.
             for (int i = 0; i < newList.Length; i++) newList[i].Id = i;
             Config.Parties = newList;
-            ResizePerPartyArrays();
+
+            // Shift (not truncate) per-party state so the values stay aligned
+            // with the party they belong to, and remap every id stored in the
+            // state through the old->new mapping.
+            RemapStateAfterRemoval(removedIdx);
+            // Poll history is indexed by party id at sample time; invalidate
+            // it so the graph doesn't mix old samples with new ones.
+            OpinionPolling.Reset();
+
             _selectedIdx = Mathf.Clamp(_selectedIdx, 0, Config.Parties.Length - 1);
             RebuildList();
             RebuildForm();
-            PoliticsUserMod.Log("Removed party: " + removed);
+            PoliticsUserMod.Log("Removed party: " + removed + " (idx=" + removedIdx + ")");
+        }
+
+        /// <summary>
+        /// Rewrite every piece of per-party state in PoliticsState so that
+        /// indices and stored party ids reflect Config.Parties having lost
+        /// slot <paramref name="removedIdx"/>. Values at indices greater than
+        /// removedIdx shift down by one. Stored ids equal to removedIdx are
+        /// dropped; ids greater than removedIdx decrement by one.
+        /// </summary>
+        private static void RemapStateAfterRemoval(int removedIdx)
+        {
+            var st = PoliticsState.Instance;
+            if (st == null) return;
+            int n = Config.Parties.Length;
+
+            st.CurrentSeats    = ShiftIntArray(st.CurrentSeats, removedIdx, n);
+            st.CurrentSupport  = ShiftFloatArray(st.CurrentSupport, removedIdx, n);
+            st.ApprovalByParty = ShiftIntArray(st.ApprovalByParty, removedIdx, n);
+
+            // Coalition ids: drop the removed one, shift higher ones down.
+            if (st.CoalitionPartyIds != null)
+            {
+                var remapped = new List<int>(st.CoalitionPartyIds.Count);
+                foreach (var id in st.CoalitionPartyIds)
+                {
+                    if (id == removedIdx) continue;
+                    remapped.Add(id > removedIdx ? id - 1 : id);
+                }
+                st.CoalitionPartyIds = remapped;
+            }
+
+            // Per-building dominant party: removed -> 255 (no data),
+            // higher ids shift down so the overlay still colours correctly.
+            var bm = st.DominantPartyByBuilding;
+            if (bm != null)
+            {
+                for (int i = 0; i < bm.Length; i++)
+                {
+                    byte pid = bm[i];
+                    if (pid == 255) continue;
+                    if (pid == removedIdx) bm[i] = 255;
+                    else if (pid > removedIdx) bm[i] = (byte)(pid - 1);
+                }
+            }
+
+            // History entries have per-party arrays sized at election time.
+            // Shift them so old stats still display correctly side-by-side.
+            if (st.History != null)
+            {
+                foreach (var r in st.History) RemapElectionResult(r, removedIdx);
+            }
+            if (st.LastResult != null && (st.History == null || st.History.Count == 0 || st.History[st.History.Count - 1] != st.LastResult))
+            {
+                RemapElectionResult(st.LastResult, removedIdx);
+            }
+            // Re-point LastResult at the tail of History if possible, so any
+            // UI that reads either sees consistent data.
+            if (st.History != null && st.History.Count > 0)
+            {
+                st.LastResult = st.History[st.History.Count - 1];
+            }
+        }
+
+        private static void RemapElectionResult(ElectionResult r, int removedIdx)
+        {
+            if (r == null) return;
+            if (r.SeatsByParty     != null) r.SeatsByParty     = ShiftIntArray(r.SeatsByParty,     removedIdx, r.SeatsByParty.Length     - 1);
+            if (r.VoteShareByParty != null) r.VoteShareByParty = ShiftFloatArray(r.VoteShareByParty, removedIdx, r.VoteShareByParty.Length - 1);
+            if (r.ApprovalByParty  != null) r.ApprovalByParty  = ShiftIntArray(r.ApprovalByParty,  removedIdx, r.ApprovalByParty.Length  - 1);
+
+            if (r.CoalitionPartyIds != null)
+            {
+                var remapped = new List<int>(r.CoalitionPartyIds.Count);
+                foreach (var id in r.CoalitionPartyIds)
+                {
+                    if (id == removedIdx) continue;
+                    remapped.Add(id > removedIdx ? id - 1 : id);
+                }
+                r.CoalitionPartyIds = remapped;
+            }
+
+            r.VotesByAgeParty    = ShiftMatrixParty(r.VotesByAgeParty,    removedIdx);
+            r.VotesByEduParty    = ShiftMatrixParty(r.VotesByEduParty,    removedIdx);
+            r.VotesByWealthParty = ShiftMatrixParty(r.VotesByWealthParty, removedIdx);
+        }
+
+        // Copy src into a new array of length newLen, skipping index removedIdx.
+        // If the resulting array is shorter than newLen, trailing slots stay 0.
+        private static int[] ShiftIntArray(int[] src, int removedIdx, int newLen)
+        {
+            var dst = new int[newLen];
+            if (src == null) return dst;
+            int j = 0;
+            for (int i = 0; i < src.Length && j < newLen; i++)
+            {
+                if (i == removedIdx) continue;
+                dst[j++] = src[i];
+            }
+            return dst;
+        }
+
+        private static float[] ShiftFloatArray(float[] src, int removedIdx, int newLen)
+        {
+            var dst = new float[newLen];
+            if (src == null) return dst;
+            int j = 0;
+            for (int i = 0; i < src.Length && j < newLen; i++)
+            {
+                if (i == removedIdx) continue;
+                dst[j++] = src[i];
+            }
+            return dst;
+        }
+
+        // Shrink a [buckets, parties] matrix by dropping column removedIdx.
+        private static int[,] ShiftMatrixParty(int[,] src, int removedIdx)
+        {
+            if (src == null) return null;
+            int rows = src.GetLength(0);
+            int cols = src.GetLength(1);
+            if (removedIdx < 0 || removedIdx >= cols) return src;
+            var dst = new int[rows, cols - 1];
+            for (int r = 0; r < rows; r++)
+            {
+                int dc = 0;
+                for (int c = 0; c < cols; c++)
+                {
+                    if (c == removedIdx) continue;
+                    dst[r, dc++] = src[r, c];
+                }
+            }
+            return dst;
         }
 
         /// <summary>

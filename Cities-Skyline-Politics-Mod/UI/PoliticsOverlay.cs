@@ -163,7 +163,13 @@ namespace PoliticsMod
             // This OnGUI renders the legend (draggable) and a "no data" hint.
 
             float panelW = LegendPanelWidth;
-            float panelH = 22f * (PartyCountRef.Value + 1) + 10f;
+            // Row count inside the legend box, excluding the title row:
+            //   Party overlay        -> N parties + 1 "No data"
+            //   Turnout/Satisfaction -> 2 swatches + 1 "No data"
+            int legendRows = st.Overlay == OverlayMode.Party
+                ? PartyCountRef.Value + 1
+                : 3;
+            float panelH = 22f * (legendRows + 1) + 10f;
 
             // Clamp in case the window was resized since the last save.
             float px = Mathf.Clamp(RuntimeConfig.OverlayLegendX,
@@ -241,6 +247,15 @@ namespace PoliticsMod
                     GUI.color = Color.white;
                     GUI.Label(new Rect(cx + 20, cy + i * 22 - 4, 200, 20), p.FullName);
                 }
+                // "No data" row - same neutral tint BuildingAI_GetColor_Patch
+                // returns for residential buildings that haven't been sampled
+                // yet (built after the last election, or a building with no
+                // voting residents).
+                int noDataRow = PartyCountRef.Value;
+                GUI.color = new Color(0.35f, 0.35f, 0.4f, 1f);
+                GUI.DrawTexture(new Rect(cx, cy + noDataRow * 22, 12, 12), _dotTex);
+                GUI.color = Color.white;
+                GUI.Label(new Rect(cx + 20, cy + noDataRow * 22 - 4, 200, 20), "No data");
             }
             else if (st.Overlay == OverlayMode.Turnout)
             {
@@ -248,6 +263,9 @@ namespace PoliticsMod
                 GUI.color = Color.white; GUI.Label(new Rect(cx + 20, cy - 4, 200, 20), "Low turnout");
                 GUI.color = Color.green; GUI.DrawTexture(new Rect(cx, cy + 22, 12, 12), _dotTex);
                 GUI.color = Color.white; GUI.Label(new Rect(cx + 20, cy + 18, 200, 20), "High turnout");
+                GUI.color = new Color(0.35f, 0.35f, 0.4f, 1f);
+                GUI.DrawTexture(new Rect(cx, cy + 44, 12, 12), _dotTex);
+                GUI.color = Color.white; GUI.Label(new Rect(cx + 20, cy + 40, 200, 20), "No data");
             }
             else if (st.Overlay == OverlayMode.Satisfaction)
             {
@@ -255,6 +273,9 @@ namespace PoliticsMod
                 GUI.color = Color.white;GUI.Label(new Rect(cx + 20, cy - 4, 200, 20), "Unhappy");
                 GUI.color = Color.cyan; GUI.DrawTexture(new Rect(cx, cy + 22, 12, 12), _dotTex);
                 GUI.color = Color.white;GUI.Label(new Rect(cx + 20, cy + 18, 200, 20), "Happy");
+                GUI.color = new Color(0.35f, 0.35f, 0.4f, 1f);
+                GUI.DrawTexture(new Rect(cx, cy + 44, 12, 12), _dotTex);
+                GUI.color = Color.white;GUI.Label(new Rect(cx + 20, cy + 40, 200, 20), "No data");
             }
             GUI.color = old;
         }
@@ -337,7 +358,10 @@ namespace PoliticsMod
             // callers / reflective access. Delegates to the positioned
             // overload at the current RuntimeConfig location.
             float panelW = LegendPanelWidth;
-            float panelH = 22f * (PartyCountRef.Value + 1) + 10f;
+            int legendRows = st.Overlay == OverlayMode.Party
+                ? PartyCountRef.Value + 1
+                : 3;
+            float panelH = 22f * (legendRows + 1) + 10f;
             DrawLegend(st,
                 RuntimeConfig.OverlayLegendX,
                 RuntimeConfig.OverlayLegendY,

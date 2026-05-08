@@ -46,22 +46,63 @@ namespace PoliticsMod
         }
 
         private static Texture2D _dotTex;
-        private static void EnsureTex()
+        private static int _dotTexSize = 0;
+
+        /// <summary>
+        /// Pick a texture resolution appropriate for the given total seat
+        /// count. Small parliaments get big on-screen dots, so they need a
+        /// high-resolution source to stay crisp. Big parliaments shrink the
+        /// dots below the useful resolution threshold, so we cut the
+        /// texture size to save memory and bandwidth without any visible
+        /// quality loss.
+        /// </summary>
+        private static int PickDotTexSize(int totalSeats)
         {
-            if (_dotTex != null) return;
-            // Soft round-ish dot: 16×16 with circular alpha falloff.
-            const int sz = 16;
+            if (totalSeats <= 51)  return 128; // up to ~25 seats either side
+            if (totalSeats <= 101) return 64;
+            if (totalSeats <= 201) return 32;
+            return 16;                          // dense parliament, tiny dots
+        }
+
+        /// <summary>
+        /// Build (or rebuild) the shared dot texture for the given seat
+        /// count. Only creates a new texture when the target size bucket
+        /// changes, so the common per-frame path is a no-op.
+        /// </summary>
+        private static void EnsureTex(int totalSeats)
+        {
+            int sz = PickDotTexSize(totalSeats);
+            if (_dotTex != null && _dotTexSize == sz) return;
+
+            if (_dotTex != null)
+            {
+                UnityEngine.Object.Destroy(_dotTex);
+                _dotTex = null;
+            }
+
             _dotTex = new Texture2D(sz, sz, TextureFormat.ARGB32, false);
+            _dotTex.filterMode = FilterMode.Bilinear;
+            _dotTex.wrapMode   = TextureWrapMode.Clamp;
+
+            float center = (sz - 1) / 2f;
+            float outerR = center;
+            // Keep the AA band ~1 texel wide, which stays proportional to
+            // the texture size so the circle's perceived softness is
+            // independent of resolution.
+            float edgeW  = 1.0f;
             for (int y = 0; y < sz; y++)
             for (int x = 0; x < sz; x++)
             {
-                float dx = x - (sz - 1) / 2f;
-                float dy = y - (sz - 1) / 2f;
-                float r = Mathf.Sqrt(dx * dx + dy * dy) / ((sz - 1) / 2f);
-                float a = r <= 0.85f ? 1f : Mathf.Clamp01(1f - (r - 0.85f) / 0.15f);
+                float dx = x - center;
+                float dy = y - center;
+                float d  = Mathf.Sqrt(dx * dx + dy * dy);
+                float a = d <= outerR - edgeW
+                    ? 1f
+                    : Mathf.Clamp01(1f - (d - (outerR - edgeW)) / edgeW);
                 _dotTex.SetPixel(x, y, new Color(1, 1, 1, a));
             }
             _dotTex.Apply();
+            _dotTexSize = sz;
         }
 
         /// <summary>
@@ -186,7 +227,7 @@ namespace PoliticsMod
             if (!isVisible) return;
             if (parent == null || !((UIComponent)parent).isVisible) return;
 
-            EnsureTex();
+            EnsureTex(_totalSeats);
             var oldColor = GUI.color;
 
             // Translate from component-local coords to screen coords.

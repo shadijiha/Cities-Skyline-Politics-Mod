@@ -59,7 +59,7 @@ namespace PoliticsMod
         {
             base.Start();
             width = 520;
-            height = 640;
+            height = 680;
             backgroundSprite = "MenuPanel2";
             canFocus = true;
             isInteractive = true;
@@ -208,6 +208,17 @@ namespace PoliticsMod
                 ElectionStatsPanel.Toggle();
             };
 
+            // -------- Opinion Polling button --------
+            var pollBtn = AddUIComponent<UIButton>();
+            pollBtn.text = "Opinion Polling";
+            pollBtn.size = new Vector2(200, 32);
+            pollBtn.relativePosition = new Vector3(15, height - 170);
+            pollBtn.normalBgSprite  = "ButtonMenu";
+            pollBtn.hoveredBgSprite = "ButtonMenuHovered";
+            pollBtn.pressedBgSprite = "ButtonMenuPressed";
+            pollBtn.textColor = Color.white;
+            pollBtn.eventClick += (c, p) => { OpinionPollingPanel.Toggle(); };
+
             // -------- Minimize Chirps checkbox --------
             var minChirpsCB = AddUIComponent<UICheckBox>();
             minChirpsCB.relativePosition = new Vector3(15, height - 127);
@@ -256,14 +267,21 @@ namespace PoliticsMod
 
             _coolLbl = BuildSliderRow(sliderY, "Re-election cooldown", out _coolSlider,
                 RuntimeConfig.MinCooldown, RuntimeConfig.MaxCooldown, RuntimeConfig.ReElectionCooldownDays,
-                v => { RuntimeConfig.ReElectionCooldownDays = v; RuntimeConfig.ClampAll(); UpdateSliderLabels(); });
+                v => { RuntimeConfig.ReElectionCooldownDays = v; RuntimeConfig.ClampAll(); UpdateSliderLabels(); },
+                "In-game days parliament waits in limbo after a FAILED coalition\n" +
+                "before auto-calling a snap re-election.\n" +
+                "\n" +
+                "Only triggers when no combination of parties can form a majority\n" +
+                "within the coalition-partner cap. Set to 0 for immediate retries,\n" +
+                "higher for a longer political deadlock. Has no effect on normal\n" +
+                "elections where a coalition succeeds.");
 
             UpdateSliderLabels();
         }
 
         private UILabel BuildSliderRow(float y, string name, out UISlider slider,
                                        float min, float max, float value,
-                                       Action<float> onChanged)
+                                       Action<float> onChanged, string tooltip = null)
         {
             var nameLbl = AddUIComponent<UILabel>();
             nameLbl.text = name;
@@ -294,6 +312,13 @@ namespace PoliticsMod
             slider.thumbObject = thumb;
 
             slider.eventValueChanged += (c, v) => { onChanged(v); };
+
+            if (!string.IsNullOrEmpty(tooltip))
+            {
+                nameLbl.tooltip  = tooltip;
+                valueLbl.tooltip = tooltip;
+                slider.tooltip   = tooltip;
+            }
 
             // Return value label so we can update it from UpdateSliderLabels
             return valueLbl;
@@ -329,8 +354,20 @@ namespace PoliticsMod
             var st = PoliticsState.Instance;
             if (st == null) return;
 
-            _phaseLabel.text = string.Format("Phase: {0} | Day {1}/{2} of term",
-                st.Phase, (int)st.DaysSinceLastElection, (int)RuntimeConfig.TermLengthDays);
+            if (st.Phase == ElectionPhase.Campaign)
+            {
+                _phaseLabel.text = string.Format(
+                    "Phase: {0} | Day {1}/{2} of campaign",
+                    st.Phase,
+                    Mathf.Clamp((int)st.DaysSinceCampaignStart + 1,
+                                1, (int)RuntimeConfig.CampaignLengthDays),
+                    (int)RuntimeConfig.CampaignLengthDays);
+            }
+            else
+            {
+                _phaseLabel.text = string.Format("Phase: {0} | Day {1}/{2} of term",
+                    st.Phase, (int)st.DaysSinceLastElection, (int)RuntimeConfig.TermLengthDays);
+            }
 
             // Parliament hemicycle + legend
             var coalSet = new HashSet<int>(st.CoalitionPartyIds ?? new List<int>());

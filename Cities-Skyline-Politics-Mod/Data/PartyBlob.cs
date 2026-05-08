@@ -25,6 +25,8 @@ namespace PoliticsMod
         public byte R, G, B;
         public float IdX, IdY, IdZ;
         public int[] VanillaPolicies;
+        // v7+: policies this party actively opposes (repealed on election).
+        public int[] OpposedPolicies;
         public int TaxDeltaRes, TaxDeltaCom, TaxDeltaInd, TaxDeltaOff;
         public int BudgetDeltaElectricity, BudgetDeltaWater, BudgetDeltaGarbage;
         public int BudgetDeltaHealth, BudgetDeltaFire, BudgetDeltaPolice;
@@ -63,6 +65,9 @@ namespace PoliticsMod
             var pols = p.VanillaPolicies ?? new DistrictPolicies.Policies[0];
             b.VanillaPolicies = new int[pols.Length];
             for (int i = 0; i < pols.Length; i++) b.VanillaPolicies[i] = (int)pols[i];
+            var opp = p.OpposedPolicies ?? new DistrictPolicies.Policies[0];
+            b.OpposedPolicies = new int[opp.Length];
+            for (int i = 0; i < opp.Length; i++) b.OpposedPolicies[i] = (int)opp[i];
             return b;
         }
 
@@ -70,6 +75,8 @@ namespace PoliticsMod
         {
             var vpol = new DistrictPolicies.Policies[VanillaPolicies != null ? VanillaPolicies.Length : 0];
             for (int i = 0; i < vpol.Length; i++) vpol[i] = (DistrictPolicies.Policies)VanillaPolicies[i];
+            var opol = new DistrictPolicies.Policies[OpposedPolicies != null ? OpposedPolicies.Length : 0];
+            for (int i = 0; i < opol.Length; i++) opol[i] = (DistrictPolicies.Policies)OpposedPolicies[i];
             return new PartyDef
             {
                 Id = Id,
@@ -78,6 +85,7 @@ namespace PoliticsMod
                 Color = new Color32(R, G, B, 255),
                 Ideology = new Vector3(IdX, IdY, IdZ),
                 VanillaPolicies = vpol,
+                OpposedPolicies = opol,
                 Modifiers = new PolicyModifiers
                 {
                     TaxDeltaRes = TaxDeltaRes, TaxDeltaCom = TaxDeltaCom,
@@ -118,6 +126,14 @@ namespace PoliticsMod
             s.WriteInt32(BudgetDeltaRoads);       s.WriteInt32(BudgetDeltaIndustry);
             s.WriteInt32(HappinessDelta);
             s.WriteFloat(PollutionMultiplier);
+
+            // v7: opposed policies (per-party). Older saves just read back as empty.
+            if (s.version >= 7)
+            {
+                int on = OpposedPolicies != null ? OpposedPolicies.Length : 0;
+                s.WriteInt32(on);
+                if (OpposedPolicies != null) foreach (var v in OpposedPolicies) s.WriteInt32(v);
+            }
         }
 
         public void Deserialize(DataSerializer s)
@@ -140,6 +156,17 @@ namespace PoliticsMod
             BudgetDeltaRoads       = s.ReadInt32(); BudgetDeltaIndustry = s.ReadInt32();
             HappinessDelta = s.ReadInt32();
             PollutionMultiplier = s.ReadFloat();
+
+            if (s.version >= 7)
+            {
+                int on = s.ReadInt32();
+                OpposedPolicies = new int[on];
+                for (int i = 0; i < on; i++) OpposedPolicies[i] = s.ReadInt32();
+            }
+            else
+            {
+                OpposedPolicies = new int[0];
+            }
         }
 
         public void AfterDeserialize(DataSerializer s) { }

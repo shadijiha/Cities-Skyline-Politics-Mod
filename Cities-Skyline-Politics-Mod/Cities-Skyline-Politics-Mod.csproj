@@ -121,6 +121,7 @@
         <Compile Include="Engine\CitizenManagerUtil.cs"/>
         <Compile Include="Engine\ElectionEngine.cs"/>
         <Compile Include="Engine\Grievances.cs"/>
+        <Compile Include="Engine\OpinionPolling.cs"/>
         <Compile Include="Harmony\BuildingAI_GetColor_Patch.cs"/>
         <Compile Include="Harmony\HarmonyPatcher.cs"/>
         <Compile Include="Mod\DebugFlags.cs"/>
@@ -130,6 +131,7 @@
         <Compile Include="Mod\PoliticsUserMod.cs"/>
         <Compile Include="UI\ElectionStatsPanel.cs"/>
         <Compile Include="UI\HemicycleView.cs"/>
+        <Compile Include="UI\OpinionPollingPanel.cs"/>
         <Compile Include="UI\PartyEditorPanel.cs"/>
         <Compile Include="UI\PartyLegendRow.cs"/>
         <Compile Include="UI\PoliticsInfoViewButton.cs"/>
