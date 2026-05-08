@@ -9,6 +9,11 @@ namespace PoliticsMod
     /// Opinion polling dashboard. Renders a daily-sample scatter plot per
     /// party with a rolling-average trend line overlay. All data comes from
     /// <see cref="OpinionPolling.History"/> (in-memory only, last 30 days).
+    ///
+    /// The heavy chart contents (gridlines, dots, trend lines) are drawn via
+    /// <see cref="OnGUI"/> using one 1x1 white texture. That avoids the
+    /// UIComponent churn (3000+ dots/segments per rebuild) that previously
+    /// froze the game when the panel was open.
     /// </summary>
     public class OpinionPollingPanel : UIPanel
     {
@@ -27,18 +32,23 @@ namespace PoliticsMod
             if (_instance != null)
             {
                 _instance.isVisible = justCreated ? true : !_instance.isVisible;
-                if (_instance.isVisible) _instance.Refresh();
+                if (_instance.isVisible) _instance.RefreshLegendAndSubtitle();
             }
         }
 
-        private UILabel   _title;
-        private UILabel   _subtitle;
-        private UIPanel   _chart;
-        private UIPanel   _legendRow;
+        private UILabel _title;
+        private UILabel _subtitle;
+        private UIPanel _chart;        // backdrop; chart contents live in OnGUI
+        private UIPanel _legendRow;
 
         // Rolling-average window. 7 feels right at 30 days of data - enough
         // to smooth daily noise without lagging behind real shifts.
         private const int AverageWindow = 7;
+
+        // Tracks the party count we last built the legend for, so we can
+        // rebuild if the user adds/removes a party while the panel is open.
+        private int _legendPartyCount = -1;
+        private int _legendHistoryLen = -1;
 
         public override void Start()
         {
@@ -82,32 +92,32 @@ namespace PoliticsMod
             _chart.backgroundSprite = "GenericPanel";
             _chart.color = new Color32(30, 30, 35, 230);
 
-            Refresh();
+            RefreshLegendAndSubtitle();
         }
 
         public override void Update()
         {
             base.Update();
             if (!isVisible) return;
-            // Rebuild once per real second so new poll samples appear without
-            // the user having to reopen the panel.
-            _repaintTimer += Time.unscaledDeltaTime;
-            if (_repaintTimer >= 1.0f)
+            // Cheap check: if the party count or recorded-day count changed,
+            // rebuild the legend + subtitle. The chart itself lives in OnGUI
+            // so it always reflects the latest data without any rebuild.
+            if (Config.Parties.Length != _legendPartyCount ||
+                OpinionPolling.History.Count != _legendHistoryLen)
             {
-                _repaintTimer = 0f;
-                Refresh();
+                RefreshLegendAndSubtitle();
             }
         }
-        private float _repaintTimer;
 
-        public void Refresh()
+        /// <summary>
+        /// Rebuild the legend row and update the subtitle. Cheap - N party
+        /// entries only. The heavy chart rendering happens in OnGUI with
+        /// zero allocation.
+        /// </summary>
+        public void RefreshLegendAndSubtitle()
         {
-            if (_chart == null || _legendRow == null) return;
+            if (_legendRow == null || _subtitle == null) return;
 
-            // Tear down old chart children
-            var killChart = new List<GameObject>();
-            foreach (Transform t in _chart.transform) killChart.Add(t.gameObject);
-            foreach (var g in killChart) UnityEngine.Object.Destroy(g);
             var killLegend = new List<GameObject>();
             foreach (Transform t in _legendRow.transform) killLegend.Add(t.gameObject);
             foreach (var g in killLegend) UnityEngine.Object.Destroy(g);
@@ -118,22 +128,15 @@ namespace PoliticsMod
             if (history.Count == 0)
             {
                 _subtitle.text = "No polling data yet - samples are collected each in-game day.";
-                var msg = _chart.AddUIComponent<UILabel>();
-                msg.text = "Waiting for the first daily poll...";
-                msg.textScale = 0.9f;
-                msg.relativePosition = new Vector3(20, 20);
-                msg.textColor = new Color32(220, 220, 225, 255);
-                return;
             }
-
-            int dayNewest = history[history.Count - 1].DayIndex;
-            int dayOldest = history[0].DayIndex;
-            int span = Math.Max(1, dayNewest - dayOldest);
-            _subtitle.text = string.Format(
-                "Daily opinion poll - sample size {0} - showing last {1} day(s)",
-                OpinionPolling.SampleSize, history.Count);
-
-            DrawChart(history, dayOldest, dayNewest, span);
+            else
+            {
+                _subtitle.text = string.Format(
+                    "Daily opinion poll - sample size {0} - showing last {1} day(s)",
+                    OpinionPolling.SampleSize, history.Count);
+            }
+            _legendPartyCount = Config.Parties.Length;
+            _legendHistoryLen = history.Count;
         }
 
         private void BuildLegend()
@@ -160,87 +163,164 @@ namespace PoliticsMod
             }
         }
 
-        private void DrawChart(List<OpinionPolling.PollSample> history,
-                               int dayOldest, int dayNewest, int span)
+        // ---- Chart rendering (OnGUI) ---------------------------------------
+
+        private static Texture2D _pxTex;
+        private static void EnsurePxTex()
         {
-            // Plot area inside _chart, with room for axis labels.
-            const float leftPad   = 38f;
-            const float rightPad  = 10f;
-            const float topPad    = 10f;
-            const float bottomPad = 22f;
+            if (_pxTex != null) return;
+            _pxTex = new Texture2D(1, 1);
+            _pxTex.SetPixel(0, 0, Color.white);
+            _pxTex.Apply();
+        }
 
-            float plotW = _chart.width  - leftPad - rightPad;
-            float plotH = _chart.height - topPad  - bottomPad;
-            if (plotW <= 10f || plotH <= 10f) return;
-
-            // Horizontal gridlines at 0/25/50/75/100 %.
-            int[] gridPct = new int[] { 0, 25, 50, 75, 100 };
-            foreach (var g in gridPct)
-            {
-                float y = topPad + plotH * (1f - g / 100f);
-                var line = _chart.AddUIComponent<UIPanel>();
-                line.relativePosition = new Vector3(leftPad, y);
-                line.size = new Vector2(plotW, 1f);
-                line.backgroundSprite = "GenericPanel";
-                line.color = new Color32(70, 70, 80, 200);
-
-                var lbl = _chart.AddUIComponent<UILabel>();
-                lbl.textScale = 0.7f;
-                lbl.text = g + "%";
-                lbl.relativePosition = new Vector3(4f, y - 7f);
-                lbl.textColor = new Color32(170, 170, 180, 255);
-            }
-
-            // X-axis tick labels (oldest / newest day).
-            var xOldLbl = _chart.AddUIComponent<UILabel>();
-            xOldLbl.textScale = 0.7f;
-            xOldLbl.text = "-" + (dayNewest - dayOldest) + "d";
-            xOldLbl.relativePosition = new Vector3(leftPad, topPad + plotH + 4);
-            xOldLbl.textColor = new Color32(170, 170, 180, 255);
-
-            var xNewLbl = _chart.AddUIComponent<UILabel>();
-            xNewLbl.textScale = 0.7f;
-            xNewLbl.text = "today";
-            xNewLbl.relativePosition = new Vector3(leftPad + plotW - 30, topPad + plotH + 4);
-            xNewLbl.textColor = new Color32(170, 170, 180, 255);
-
+        private void OnGUI()
+        {
+            if (!isVisible) return;
+            if (_chart == null) return;
+            var history = OpinionPolling.History;
+            if (history.Count == 0) return;
             int n = Config.Parties.Length;
             if (n <= 0) return;
+
+            EnsurePxTex();
+
+            // Convert component-local coords to screen pixels, the same way
+            // HemicycleView does. _chart.absolutePosition gives us the
+            // top-left of the chart area in UI units.
+            var view = GetUIView();
+            if (view == null) return;
+            float sx = Screen.width  / (float)view.fixedWidth;
+            float sy = Screen.height / (float)view.fixedHeight;
+
+            Vector3 absChart = _chart.absolutePosition;
+            float chartX = absChart.x * sx;
+            float chartY = absChart.y * sy;
+            float chartW = _chart.width  * sx;
+            float chartH = _chart.height * sy;
+
+            // Plot area with padding for axis labels.
+            float leftPad   = 38f * sx;
+            float rightPad  = 10f * sx;
+            float topPad    = 10f * sy;
+            float bottomPad = 22f * sy;
+
+            float plotX = chartX + leftPad;
+            float plotY = chartY + topPad;
+            float plotW = chartW - leftPad - rightPad;
+            float plotH = chartH - topPad  - bottomPad;
+            if (plotW <= 10f || plotH <= 10f) return;
+
+            Color oldCol = GUI.color;
+
+            // --- Horizontal gridlines at 0/25/50/75/100% + y-axis labels ---
+            int[] gridPct = new int[] { 0, 25, 50, 75, 100 };
+            var gridStyle = new GUIStyle();
+            gridStyle.normal.textColor = new Color32(170, 170, 180, 255);
+            gridStyle.fontSize = Mathf.Max(8, Mathf.RoundToInt(10f * Mathf.Min(sx, sy)));
+            foreach (var g in gridPct)
+            {
+                float y = plotY + plotH * (1f - g / 100f);
+                GUI.color = new Color32(70, 70, 80, 200);
+                GUI.DrawTexture(new Rect(plotX, y, plotW, 1f), _pxTex);
+                GUI.color = Color.white;
+                GUI.Label(new Rect(chartX + 4f * sx, y - 7f * sy, 30f * sx, 14f * sy),
+                          g + "%", gridStyle);
+            }
+
+            // --- X-axis tick labels ---
+            int dayNewest = history[history.Count - 1].DayIndex;
+            int dayOldest = history[0].DayIndex;
+            int span = Math.Max(1, dayNewest - dayOldest);
+            GUI.Label(new Rect(plotX, plotY + plotH + 4f * sy, 40f * sx, 14f * sy),
+                      "-" + (dayNewest - dayOldest) + "d", gridStyle);
+            GUI.Label(new Rect(plotX + plotW - 30f * sx, plotY + plotH + 4f * sy,
+                               40f * sx, 14f * sy),
+                      "today", gridStyle);
 
             // --- Rolling-average trend lines (drawn under dots) ---
             for (int p = 0; p < n; p++)
             {
-                var line = ComputeRollingAverage(history, p, AverageWindow);
-                DrawLine(history, line, p, dayOldest, span,
-                         leftPad, topPad, plotW, plotH);
+                var avg = ComputeRollingAverage(history, p, AverageWindow);
+                DrawTrendLine(history, avg, p, dayOldest, span,
+                              plotX, plotY, plotW, plotH, sx, sy);
             }
 
             // --- Daily dots ---
+            float dotHalf = Mathf.Max(1f, 2f * Mathf.Min(sx, sy));
             for (int s = 0; s < history.Count; s++)
             {
                 var sample = history[s];
-                int sn = sample.ShareByParty != null ? sample.ShareByParty.Length : 0;
-                int lim = Math.Min(n, sn);
-                float t  = (sample.DayIndex - dayOldest) / (float)span;
-                float x  = leftPad + plotW * t;
+                var arr = sample.ShareByParty;
+                if (arr == null) continue;
+                int lim = Math.Min(n, arr.Length);
+                float t = (sample.DayIndex - dayOldest) / (float)span;
+                float x = plotX + plotW * t;
                 for (int p = 0; p < lim; p++)
                 {
-                    float share = sample.ShareByParty[p];
-                    float y = topPad + plotH * (1f - Mathf.Clamp01(share));
-                    var dot = _chart.AddUIComponent<UIPanel>();
-                    dot.relativePosition = new Vector3(x - 2f, y - 2f);
-                    dot.size = new Vector2(4f, 4f);
-                    dot.backgroundSprite = "GenericPanel";
-                    dot.color = Config.Parties[p].Color;
+                    float y = plotY + plotH * (1f - Mathf.Clamp01(arr[p]));
+                    GUI.color = Config.Parties[p].Color;
+                    GUI.DrawTexture(
+                        new Rect(x - dotHalf, y - dotHalf, dotHalf * 2f, dotHalf * 2f),
+                        _pxTex);
                 }
+            }
+
+            GUI.color = oldCol;
+        }
+
+        /// <summary>
+        /// Draw a trend line for one party as a series of rotated thin
+        /// rectangles, one per (history[i], history[i+1]) segment. 29
+        /// segments per party * 6 parties = ~174 DrawTexture calls per
+        /// frame, cheap and allocation-free.
+        /// </summary>
+        private void DrawTrendLine(List<OpinionPolling.PollSample> history, float[] values,
+                                   int partyIdx, int dayOldest, int span,
+                                   float plotX, float plotY, float plotW, float plotH,
+                                   float sx, float sy)
+        {
+            if (history.Count < 2) return;
+            Color32 baseCol = Config.Parties[partyIdx].Color;
+            Color lineCol = new Color(baseCol.r / 255f, baseCol.g / 255f,
+                                      baseCol.b / 255f, 140f / 255f);
+            float thickness = Mathf.Max(1f, 2f * Mathf.Min(sx, sy));
+
+            float prevX = 0f, prevY = 0f;
+            bool havePrev = false;
+            for (int i = 0; i < history.Count; i++)
+            {
+                float t = (history[i].DayIndex - dayOldest) / (float)span;
+                float x = plotX + plotW * t;
+                float y = plotY + plotH * (1f - Mathf.Clamp01(values[i]));
+                if (havePrev) DrawLineSegment(prevX, prevY, x, y, thickness, lineCol);
+                prevX = x; prevY = y; havePrev = true;
             }
         }
 
         /// <summary>
-        /// Compute a centered rolling average of <paramref name="partyIdx"/>'s
-        /// vote share across the history. Uses a symmetric window of
-        /// <paramref name="window"/> samples; clamps at the ends so the line
-        /// still has a value for every recorded day.
+        /// One rotated thin rectangle per segment. Uses GUIUtility rotation
+        /// so we don't have to manually approximate the line with dots.
+        /// </summary>
+        private static void DrawLineSegment(float x1, float y1, float x2, float y2,
+                                            float thickness, Color col)
+        {
+            float dx = x2 - x1;
+            float dy = y2 - y1;
+            float len = Mathf.Sqrt(dx * dx + dy * dy);
+            if (len < 0.5f) return;
+
+            float angle = Mathf.Atan2(dy, dx) * Mathf.Rad2Deg;
+            Matrix4x4 prev = GUI.matrix;
+            GUIUtility.RotateAroundPivot(angle, new Vector2(x1, y1));
+            GUI.color = col;
+            GUI.DrawTexture(new Rect(x1, y1 - thickness / 2f, len, thickness), _pxTex);
+            GUI.matrix = prev;
+        }
+
+        /// <summary>
+        /// Symmetric rolling average across a history window. Clamps at the
+        /// ends so we have a value for every sample.
         /// </summary>
         private static float[] ComputeRollingAverage(List<OpinionPolling.PollSample> history,
                                                      int partyIdx, int window)
@@ -266,61 +346,6 @@ namespace PoliticsMod
                 smoothed[i] = c > 0 ? sum / c : 0f;
             }
             return smoothed;
-        }
-
-        /// <summary>
-        /// Draw a broken line by stacking thin rectangles between consecutive
-        /// points. No line primitive in Colossal UI, so this is the honest
-        /// cheapest way; over 30 days it stays cheap.
-        /// </summary>
-        private void DrawLine(List<OpinionPolling.PollSample> history, float[] values,
-                              int partyIdx, int dayOldest, int span,
-                              float leftPad, float topPad, float plotW, float plotH)
-        {
-            if (history.Count < 2) return;
-            Color32 baseCol = Config.Parties[partyIdx].Color;
-            // Slightly transparent so dots read on top.
-            Color32 lineCol = new Color32(baseCol.r, baseCol.g, baseCol.b, 140);
-
-            float prevX = 0, prevY = 0;
-            bool havePrev = false;
-            for (int i = 0; i < history.Count; i++)
-            {
-                float t = (history[i].DayIndex - dayOldest) / (float)span;
-                float x = leftPad + plotW * t;
-                float y = topPad + plotH * (1f - Mathf.Clamp01(values[i]));
-                if (havePrev)
-                {
-                    DrawSegment(prevX, prevY, x, y, lineCol);
-                }
-                prevX = x; prevY = y; havePrev = true;
-            }
-        }
-
-        /// <summary>
-        /// Draw a straight line segment from (x1,y1) to (x2,y2) as a rotated
-        /// thin sprite. We skip rotation and approximate by drawing a series
-        /// of overlapping 2x2 dots - good enough for a 30-day trend line and
-        /// avoids needing a rotation transform on UIPanel.
-        /// </summary>
-        private void DrawSegment(float x1, float y1, float x2, float y2, Color32 col)
-        {
-            float dx = x2 - x1;
-            float dy = y2 - y1;
-            float len = Mathf.Sqrt(dx * dx + dy * dy);
-            if (len < 0.5f) return;
-            int steps = Mathf.CeilToInt(len);
-            for (int i = 0; i <= steps; i++)
-            {
-                float f = i / (float)steps;
-                float x = x1 + dx * f;
-                float y = y1 + dy * f;
-                var seg = _chart.AddUIComponent<UIPanel>();
-                seg.relativePosition = new Vector3(x - 1f, y - 1f);
-                seg.size = new Vector2(2f, 2f);
-                seg.backgroundSprite = "GenericPanel";
-                seg.color = col;
-            }
         }
     }
 }

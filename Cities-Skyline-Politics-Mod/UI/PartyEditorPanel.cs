@@ -563,7 +563,11 @@ namespace PoliticsMod
                     break;
                 case PolicyStance.Oppose:
                     bg = "ButtonMenuFocused";
-                    col = new Color32(230, 90, 90, 255);   // red
+                    // ButtonMenuFocused is a dark sprite; UIButton.color
+                    // multiplies into it, so we push R close to max and
+                    // knock the other channels down for a clearly red tint
+                    // that matches the intensity of the Support green.
+                    col = new Color32(255, 55, 55, 255);
                     tip = FormatPolicyName(policy) + "\nOppose: will be repealed when elected";
                     break;
                 default:
