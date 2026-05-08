@@ -575,9 +575,14 @@ namespace PoliticsMod
             btn.normalBgSprite   = bg;
             btn.focusedBgSprite  = bg; // keep visual stable through focus
             btn.disabledBgSprite = bg;
+            // Tint every state so hovering / pressing an opposed or supported
+            // tile keeps the colour instead of reverting to the default grey
+            // tint of ButtonMenuHovered / ButtonMenuPressed.
             btn.color            = col;
             btn.focusedColor     = col;
             btn.disabledColor    = col;
+            btn.hoveredColor     = col;
+            btn.pressedColor     = col;
             btn.tooltip          = tip;
         }
 

@@ -46,6 +46,7 @@ namespace PoliticsMod
             public UISlider Slider;
             public Func<float> Get;
             public Action<float> Set;
+            public string Fmt;
         }
         private List<Row> _rows = new List<Row>();
 
@@ -117,6 +118,21 @@ namespace PoliticsMod
             y = AddRow(y, "Sick",              () => VoterTraits.BiasSick,          v => VoterTraits.BiasSick          = v);
             y = AddRow(y, "Lives in pollution",() => VoterTraits.BiasHighPollution, v => VoterTraits.BiasHighPollution = v);
 
+            y += 6f;
+            y = AddSection("Deficit sensitivity", y);
+            y = AddCustomRow(y, "Deficit multiplier",
+                RuntimeConfig.MinDeficitMult, RuntimeConfig.MaxDeficitMult, 0.1f,
+                () => RuntimeConfig.DeficitPressureMultiplier,
+                v => RuntimeConfig.DeficitPressureMultiplier = v,
+                "0.00",
+                "How strongly a sustained budget deficit pushes voters toward\n" +
+                "the economic right.\n" +
+                "  0 = feature off, deficits don't move voters.\n" +
+                "  1 = default curve: up to +0.35 right-wing nudge after\n" +
+                "      about 6 consecutive deficit weeks.\n" +
+                "  2 = twice as sensitive. 3 = maximum.\n" +
+                "Applies on top of per-voter trait biases.");
+
             // Reset button
             var reset = AddUIComponent<UIButton>();
             reset.text = "Reset to defaults";
@@ -174,7 +190,61 @@ namespace PoliticsMod
                 valLbl.text = v.ToString("+0.00;-0.00;0.00");
             };
 
-            _rows.Add(new Row { ValueLabel = valLbl, Slider = slider, Get = get, Set = set });
+            _rows.Add(new Row { ValueLabel = valLbl, Slider = slider, Get = get, Set = set, Fmt = "+0.00;-0.00;0.00" });
+            return y + 22f;
+        }
+
+        /// <summary>
+        /// Slider row with an explicit range + value-format string. Used by
+        /// knobs that don't live on the -1..+1 voter-bias scale (e.g.
+        /// deficit sensitivity).
+        /// </summary>
+        private float AddCustomRow(float y, string label,
+                                   float min, float max, float step,
+                                   Func<float> get, Action<float> set,
+                                   string fmt, string tooltip = null)
+        {
+            var nameLbl = AddUIComponent<UILabel>();
+            nameLbl.text = label;
+            nameLbl.textScale = 0.8f;
+            nameLbl.relativePosition = new Vector3(25, y);
+
+            var valLbl = AddUIComponent<UILabel>();
+            valLbl.textScale = 0.8f;
+            valLbl.relativePosition = new Vector3(width - 65, y);
+            valLbl.text = get().ToString(fmt);
+
+            var slider = AddUIComponent<UISlider>();
+            slider.relativePosition = new Vector3(180, y + 4);
+            slider.size = new Vector2(width - 260, 12);
+            slider.minValue = min;
+            slider.maxValue = max;
+            slider.stepSize = step;
+            slider.value = Mathf.Clamp(get(), min, max);
+
+            var track = slider.AddUIComponent<UISlicedSprite>();
+            track.relativePosition = new Vector3(0, 5);
+            track.size = new Vector2(slider.width, 3);
+            track.spriteName = "BudgetSlider";
+            var thumb = slider.AddUIComponent<UISlicedSprite>();
+            thumb.size = new Vector2(10, 12);
+            thumb.spriteName = "SliderBudget";
+            slider.thumbObject = thumb;
+
+            slider.eventValueChanged += (c, v) =>
+            {
+                set(v);
+                valLbl.text = v.ToString(fmt);
+            };
+
+            if (!string.IsNullOrEmpty(tooltip))
+            {
+                nameLbl.tooltip = tooltip;
+                valLbl.tooltip  = tooltip;
+                slider.tooltip  = tooltip;
+            }
+
+            _rows.Add(new Row { ValueLabel = valLbl, Slider = slider, Get = get, Set = set, Fmt = fmt });
             return y + 22f;
         }
 
@@ -184,7 +254,7 @@ namespace PoliticsMod
             {
                 float v = r.Get();
                 r.Slider.value = v;
-                r.ValueLabel.text = v.ToString("+0.00;-0.00;0.00");
+                r.ValueLabel.text = v.ToString(r.Fmt ?? "+0.00;-0.00;0.00");
             }
         }
     }

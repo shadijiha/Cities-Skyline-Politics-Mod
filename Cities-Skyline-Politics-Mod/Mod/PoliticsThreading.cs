@@ -132,8 +132,11 @@ namespace PoliticsMod
                 }
                 catch { /* ignore - early frame before managers are ready */ }
             }
-            // Maybe post a citizen deficit chirp
+            // Maybe post a citizen deficit chirp. Multiplier=0 silences the
+            // whole deficit subsystem, including these chirps, so the
+            // "0 = off" tooltip matches reality.
             if (ElectionEngine.DeficitWeeks > 0 &&
+                RuntimeConfig.DeficitPressureMultiplier > 0f &&
                 ElectionEngine.DaysSinceLastDeficitChirp >= 10f &&
                 !DebugFlags.MinimalChirps)
             {

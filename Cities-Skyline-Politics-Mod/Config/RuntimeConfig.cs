@@ -22,6 +22,13 @@ namespace PoliticsMod
         public static float CampaignLengthDays     = Config.DefaultCampaignLengthDays;
         public static float ReElectionCooldownDays = Config.DefaultReElectionCooldownDays;
 
+        // How strongly a sustained budget deficit nudges voters toward the
+        // economic right. 1.0 = vanilla curve; 0 = feature disabled;
+        // 2.0 = twice as sensitive. See ElectionEngine.DeficitPressure.
+        public static float DeficitPressureMultiplier = 1.0f;
+        public const float MinDeficitMult = 0f;
+        public const float MaxDeficitMult = 3f;
+
         // Hotkey that toggles the main Politics panel.
         // RequireCtrl = true means the user must hold Ctrl + key.
         public static KeyCode TogglePanelKey = Config.DefaultTogglePanelKey;
@@ -50,6 +57,7 @@ namespace PoliticsMod
             TermLengthDays         = Mathf.Clamp(TermLengthDays,         MinTerm,     MaxTerm);
             CampaignLengthDays     = Mathf.Clamp(CampaignLengthDays,     MinCampaign, MaxCampaign);
             ReElectionCooldownDays = Mathf.Clamp(ReElectionCooldownDays, MinCooldown, MaxCooldown);
+            DeficitPressureMultiplier = Mathf.Clamp(DeficitPressureMultiplier, MinDeficitMult, MaxDeficitMult);
             // Campaign can't exceed term length
             if (CampaignLengthDays > TermLengthDays * 0.9f)
                 CampaignLengthDays = TermLengthDays * 0.9f;

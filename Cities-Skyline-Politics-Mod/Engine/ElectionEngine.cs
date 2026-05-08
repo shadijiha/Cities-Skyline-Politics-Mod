@@ -39,6 +39,7 @@ namespace PoliticsMod
         /// <summary>
         /// Current deficit pressure on voters' economic axis, 0..0.35.
         /// Kicks in at 1 week of deficit, saturates around 6 weeks.
+        /// Scaled by RuntimeConfig.DeficitPressureMultiplier (1.0 = default).
         /// </summary>
         public static float DeficitPressure
         {
@@ -46,7 +47,7 @@ namespace PoliticsMod
             {
                 if (DeficitWeeks <= 0) return 0f;
                 float t = Mathf.Clamp01(DeficitWeeks / 6f);
-                return 0.05f + 0.30f * t;
+                return (0.05f + 0.30f * t) * RuntimeConfig.DeficitPressureMultiplier;
             }
         }
 

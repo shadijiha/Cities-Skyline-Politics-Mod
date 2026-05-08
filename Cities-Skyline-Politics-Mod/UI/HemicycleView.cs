@@ -49,16 +49,30 @@ namespace PoliticsMod
         private static void EnsureTex()
         {
             if (_dotTex != null) return;
-            // Soft round-ish dot: 16×16 with circular alpha falloff.
-            const int sz = 16;
+            // Soft round dot rendered at a generous resolution so the seat
+            // markers stay crisp at low seat counts, where each dot draws
+            // ~40-80 px on screen. 64 px source + bilinear filter produces
+            // a cleanly anti-aliased circle at any realistic draw size.
+            const int sz = 64;
             _dotTex = new Texture2D(sz, sz, TextureFormat.ARGB32, false);
+            _dotTex.filterMode = FilterMode.Bilinear;
+            _dotTex.wrapMode   = TextureWrapMode.Clamp;
+            // Anti-aliased edge band: 1 px wide in texel space gives a
+            // smooth circumference that scales gracefully.
+            float center  = (sz - 1) / 2f;
+            float outerR  = center;               // in texels
+            float edgeW   = 1.0f;                 // AA band width in texels
             for (int y = 0; y < sz; y++)
             for (int x = 0; x < sz; x++)
             {
-                float dx = x - (sz - 1) / 2f;
-                float dy = y - (sz - 1) / 2f;
-                float r = Mathf.Sqrt(dx * dx + dy * dy) / ((sz - 1) / 2f);
-                float a = r <= 0.85f ? 1f : Mathf.Clamp01(1f - (r - 0.85f) / 0.15f);
+                float dx = x - center;
+                float dy = y - center;
+                float d  = Mathf.Sqrt(dx * dx + dy * dy);
+                // Inside (d <= outerR - edgeW) -> fully opaque.
+                // Edge band -> linear falloff to 0 at outerR.
+                float a = d <= outerR - edgeW
+                    ? 1f
+                    : Mathf.Clamp01(1f - (d - (outerR - edgeW)) / edgeW);
                 _dotTex.SetPixel(x, y, new Color(1, 1, 1, a));
             }
             _dotTex.Apply();
