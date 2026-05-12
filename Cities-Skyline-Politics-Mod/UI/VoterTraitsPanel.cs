@@ -62,6 +62,22 @@ namespace PoliticsMod
             relativePosition = new Vector3(180, 80);
             BuildUI();
             // Visibility controlled by Toggle()
+            L10n.LanguageChanged += OnLanguageChanged;
+        }
+
+        public override void OnDestroy()
+        {
+            L10n.LanguageChanged -= OnLanguageChanged;
+            base.OnDestroy();
+        }
+
+        private void OnLanguageChanged()
+        {
+            var kids = new List<GameObject>();
+            foreach (Transform t in transform) kids.Add(t.gameObject);
+            foreach (var g in kids) UnityEngine.Object.Destroy(g);
+            _rows.Clear();
+            BuildUI();
         }
 
         private void BuildUI()

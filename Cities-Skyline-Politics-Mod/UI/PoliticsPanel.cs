@@ -67,12 +67,29 @@ namespace PoliticsMod
             relativePosition = new Vector3(120, 80);
             Instance = this;
             BuildUI();
+            L10n.LanguageChanged += OnLanguageChanged;
         }
 
         public override void OnDestroy()
         {
+            L10n.LanguageChanged -= OnLanguageChanged;
             if (Instance == this) Instance = null;
             base.OnDestroy();
+        }
+
+        // Destroy every child and rebuild the panel from scratch so all
+        // localized labels pick up the new language. The panel has no
+        // user-editable state beyond what's already in RuntimeConfig, so a
+        // full rebuild is the simplest correct refresh.
+        private void OnLanguageChanged()
+        {
+            // Tear down every child.
+            var kids = new List<GameObject>();
+            foreach (Transform t in transform) kids.Add(t.gameObject);
+            foreach (var g in kids) UnityEngine.Object.Destroy(g);
+            // Reset caches.
+            _lastPoliciesHash = -1;
+            BuildUI();
         }
 
         private void BuildUI()

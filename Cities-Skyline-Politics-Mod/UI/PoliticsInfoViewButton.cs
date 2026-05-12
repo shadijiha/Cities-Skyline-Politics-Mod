@@ -85,6 +85,22 @@ namespace PoliticsMod
             BuildDragHandle();
 
             UpdateLabel();
+
+            L10n.LanguageChanged += OnLanguageChanged;
+        }
+
+        public override void OnDestroy()
+        {
+            L10n.LanguageChanged -= OnLanguageChanged;
+            base.OnDestroy();
+        }
+
+        private void OnLanguageChanged()
+        {
+            _textsDirty = true;
+            if (_btn != null) _btn.tooltip = L10n.T(L10nKeys.InfoButton_Tooltip);
+            if (_dragHandle != null) _dragHandle.tooltip = L10n.T(L10nKeys.InfoButton_DragTooltip);
+            UpdateLabel();
         }
 
         /// <summary>
@@ -195,12 +211,17 @@ namespace PoliticsMod
         }
 
         private OverlayMode _lastSeen = (OverlayMode)(-1);
+        // Set by OnLanguageChanged so the next UpdateLabel() re-renders the
+        // text even if the overlay state hasn't moved.
+        private bool _textsDirty;
+
         private void UpdateLabel()
         {
             var st = PoliticsState.Instance;
             if (st == null || _btn == null) return;
-            if (st.Overlay == _lastSeen) return;
+            if (!_textsDirty && st.Overlay == _lastSeen) return;
             _lastSeen = st.Overlay;
+            _textsDirty = false;
 
             string label;
             Color32 swatch;

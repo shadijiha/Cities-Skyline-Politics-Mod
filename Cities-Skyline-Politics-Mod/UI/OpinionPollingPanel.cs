@@ -41,6 +41,7 @@ namespace PoliticsMod
         private UILabel _subtitle;
         private UIPanel _chart;        // backdrop; chart contents live in OnGUI
         private UIPanel _legendRow;
+        private UIButton _closeBtn;
 
         // Rolling-average window. 7 feels right at 30 days of data - enough
         // to smooth daily noise without lagging behind real shifts.
@@ -76,6 +77,7 @@ namespace PoliticsMod
             close.hoveredBgSprite = "ButtonMenuHovered";
             close.pressedBgSprite = "ButtonMenuPressed";
             close.eventClick += (c, p) => { isVisible = false; };
+            _closeBtn = close;
 
             _subtitle = AddUIComponent<UILabel>();
             _subtitle.textScale = 0.85f;
@@ -93,6 +95,25 @@ namespace PoliticsMod
             _chart.backgroundSprite = "GenericPanel";
             _chart.color = new Color32(30, 30, 35, 230);
 
+            RefreshLegendAndSubtitle();
+
+            L10n.LanguageChanged += OnLanguageChanged;
+        }
+
+        public override void OnDestroy()
+        {
+            L10n.LanguageChanged -= OnLanguageChanged;
+            base.OnDestroy();
+        }
+
+        private void OnLanguageChanged()
+        {
+            if (_title    != null) _title.text    = L10n.T(L10nKeys.Polling_Title);
+            if (_closeBtn != null) _closeBtn.text = L10n.T(L10nKeys.Common_CloseX);
+            // Subtitle + legend use L10n.T inside; rebuilding them is the
+            // single call that picks up the new catalog. Chart itself lives
+            // in OnGUI with x-axis labels read from L10n every frame, so
+            // nothing else needs touching.
             RefreshLegendAndSubtitle();
         }
 

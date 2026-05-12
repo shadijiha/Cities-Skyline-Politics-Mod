@@ -46,6 +46,7 @@ namespace PoliticsMod
         private UILabel _title;
         private UILabel _subtitle;
         private UIScrollablePanel _chartPanel;
+        private UIButton _closeBtn;
 
         public override void Start()
         {
@@ -60,6 +61,22 @@ namespace PoliticsMod
             // Visibility controlled by Toggle().
             // Populate the chart immediately so the first-open flow works
             // even if Toggle's Refresh() call ran before Start built _chartPanel.
+            Refresh();
+            L10n.LanguageChanged += OnLanguageChanged;
+        }
+
+        public override void OnDestroy()
+        {
+            L10n.LanguageChanged -= OnLanguageChanged;
+            base.OnDestroy();
+        }
+
+        private void OnLanguageChanged()
+        {
+            if (_title    != null) _title.text    = L10n.T(L10nKeys.Stats_Title);
+            if (_closeBtn != null) _closeBtn.text = L10n.T(L10nKeys.Common_CloseX);
+            // Refresh rebuilds the subtitle and every chart label from the
+            // current catalog, so one call covers the rest of the panel.
             Refresh();
         }
 
@@ -83,6 +100,7 @@ namespace PoliticsMod
             close.hoveredBgSprite = "ButtonMenuHovered";
             close.pressedBgSprite = "ButtonMenuPressed";
             close.eventClick += (c, p) => { isVisible = false; };
+            _closeBtn = close;
 
             _subtitle = AddUIComponent<UILabel>();
             _subtitle.textScale = 0.85f;

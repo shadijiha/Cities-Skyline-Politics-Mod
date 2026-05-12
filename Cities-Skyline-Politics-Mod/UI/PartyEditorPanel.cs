@@ -61,6 +61,11 @@ namespace PoliticsMod
         // Add/Remove buttons at the bottom of the list.
         private UIButton _addBtn, _removeBtn;
 
+        // Header title and close glyph - retained so OnLanguageChanged
+        // can re-localize them without rebuilding the whole panel.
+        private UILabel _titleLabel;
+        private UIButton _closeBtn;
+
         public override void Start()
         {
             base.Start();
@@ -85,25 +90,47 @@ namespace PoliticsMod
             // Do NOT set isVisible here — the caller (Toggle) controls it.
             // Setting isVisible = false would fight with the Toggle that
             // triggered this Start() in the first place.
+
+            L10n.LanguageChanged += OnLanguageChanged;
+        }
+
+        public override void OnDestroy()
+        {
+            L10n.LanguageChanged -= OnLanguageChanged;
+            base.OnDestroy();
+        }
+
+        private void OnLanguageChanged()
+        {
+            // Title, close glyph, add/remove buttons sit outside the list/form
+            // rebuild paths, so re-label them manually. RebuildList + RebuildForm
+            // regenerate every other labelled widget from scratch using the
+            // current catalog.
+            if (_titleLabel != null) _titleLabel.text = L10n.T(L10nKeys.PartyEditor_Title);
+            if (_closeBtn   != null) _closeBtn.text   = L10n.T(L10nKeys.Common_CloseX);
+            if (_addBtn     != null) _addBtn.text     = L10n.T(L10nKeys.PartyEditor_Add);
+            if (_removeBtn  != null) _removeBtn.text  = L10n.T(L10nKeys.PartyEditor_Remove);
+            RebuildList();
+            RebuildForm();
         }
 
         private void BuildUI()
         {
-            var title = AddUIComponent<UILabel>();
-            title.text = L10n.T(L10nKeys.PartyEditor_Title);
-            title.textScale = 1.2f;
-            title.relativePosition = new Vector3(15, 10);
+            _titleLabel = AddUIComponent<UILabel>();
+            _titleLabel.text = L10n.T(L10nKeys.PartyEditor_Title);
+            _titleLabel.textScale = 1.2f;
+            _titleLabel.relativePosition = new Vector3(15, 10);
 
             UIHelpers.MakeDraggable(this);
 
-            var close = AddUIComponent<UIButton>();
-            close.text = L10n.T(L10nKeys.Common_CloseX);
-            close.size = new Vector2(28, 24);
-            close.relativePosition = new Vector3(width - 35, 8);
-            close.normalBgSprite = "ButtonMenu";
-            close.hoveredBgSprite = "ButtonMenuHovered";
-            close.pressedBgSprite = "ButtonMenuPressed";
-            close.eventClick += (c, p) => { isVisible = false; };
+            _closeBtn = AddUIComponent<UIButton>();
+            _closeBtn.text = L10n.T(L10nKeys.Common_CloseX);
+            _closeBtn.size = new Vector2(28, 24);
+            _closeBtn.relativePosition = new Vector3(width - 35, 8);
+            _closeBtn.normalBgSprite = "ButtonMenu";
+            _closeBtn.hoveredBgSprite = "ButtonMenuHovered";
+            _closeBtn.pressedBgSprite = "ButtonMenuPressed";
+            _closeBtn.eventClick += (c, p) => { isVisible = false; };
 
             // ---- Left: party list ----
             _listPanel = AddUIComponent<UIPanel>();
