@@ -10,6 +10,7 @@ using ColossalFramework.Math;
 using ColossalFramework.UI;
 using HarmonyLib;
 using ICities;
+using PoliticsMod.Localization;
 using UnityEngine;
 
 namespace PoliticsMod
@@ -21,13 +22,14 @@ namespace PoliticsMod
     // ========================================================================
     public class PoliticsUserMod : ICities.IUserMod
     {
-        public string Name        { get { return "Politics & Elections Mod"; } }
-        public string Description { get { return "Citizens elect a parliament; coalitions shape city policies. Press Ctrl+P to open panel."; } }
+        public string Name        { get { return L10n.T(L10nKeys.Mod_Name); } }
+        public string Description { get { return L10n.T(L10nKeys.Mod_Description); } }
 
         public void OnEnabled()
         {
             Log("OnEnabled");
             ModSettings.Load();
+            L10n.Init();
             HarmonyPatcher.PatchAll();
         }
 
@@ -39,15 +41,15 @@ namespace PoliticsMod
 
         public void OnSettingsUI(UIHelperBase helper)
         {
-            var group = helper.AddGroup("Politics & Elections");
-            group.AddCheckbox("Enable debug logging", DebugFlags.Verbose, v =>
+            var group = helper.AddGroup(L10n.T(L10nKeys.Settings_Group_Main));
+            group.AddCheckbox(L10n.T(L10nKeys.Settings_EnableDebugLogging), DebugFlags.Verbose, v =>
             {
                 DebugFlags.Verbose = v;
                 ModSettings.Save();
             });
 
             // --- Panel toggle hotkey ------------------------------------
-            var keyGroup = helper.AddGroup("Panel toggle hotkey");
+            var keyGroup = helper.AddGroup(L10n.T(L10nKeys.Settings_Group_Hotkey));
 
             // Pre-curated list of sensible hotkey candidates (single letters,
             // F-keys, and a couple of punctuation keys). Most people won't
@@ -66,7 +68,7 @@ namespace PoliticsMod
                 if (choices[i] == RuntimeConfig.TogglePanelKey) selected = i;
             }
 
-            keyGroup.AddDropdown("Hotkey", labels, selected, v =>
+            keyGroup.AddDropdown(L10n.T(L10nKeys.Settings_Hotkey), labels, selected, v =>
             {
                 if (v >= 0 && v < choices.Count)
                 {
@@ -75,7 +77,7 @@ namespace PoliticsMod
                 }
             });
 
-            keyGroup.AddCheckbox("Require Ctrl modifier",
+            keyGroup.AddCheckbox(L10n.T(L10nKeys.Settings_RequireCtrl),
                 RuntimeConfig.TogglePanelRequireCtrl,
                 v =>
                 {
@@ -84,8 +86,8 @@ namespace PoliticsMod
                 });
 
             // --- Utility buttons ----------------------------------------
-            var utilGroup = helper.AddGroup("Utilities");
-            utilGroup.AddButton("Open Elections panel", () => {
+            var utilGroup = helper.AddGroup(L10n.T(L10nKeys.Settings_Group_Utilities));
+            utilGroup.AddButton(L10n.T(L10nKeys.Settings_OpenElectionsPanel), () => {
                 if (PoliticsPanel.Instance != null)
                 {
                     PoliticsPanel.Show();

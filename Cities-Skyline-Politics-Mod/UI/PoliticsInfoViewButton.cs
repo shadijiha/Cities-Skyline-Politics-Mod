@@ -10,6 +10,7 @@ using ColossalFramework.Math;
 using ColossalFramework.UI;
 using HarmonyLib;
 using ICities;
+using PoliticsMod.Localization;
 using UnityEngine;
 
 namespace PoliticsMod
@@ -71,7 +72,7 @@ namespace PoliticsMod
             // Mirror the right padding by the drag-handle width so the label
             // visually centers in the still-clickable portion of the button.
             _btn.textPadding = new RectOffset(24, 6 + (int)DragHandleWidth, 6, 6);
-            _btn.tooltip = "Politics info view: cycle Party / Turnout / Satisfaction";
+            _btn.tooltip = L10n.T(L10nKeys.InfoButton_Tooltip);
             _btn.eventClick += OnClick;
 
             // Small colored swatch on the left side of the button
@@ -100,7 +101,7 @@ namespace PoliticsMod
             _dragHandle.size = new Vector2(DragHandleWidth, 38f);
             _dragHandle.relativePosition = new Vector3(170f - DragHandleWidth, 0f);
             _dragHandle.name = "PoliticsInfoViewButton.DragHandle";
-            _dragHandle.tooltip = "Drag to move";
+            _dragHandle.tooltip = L10n.T(L10nKeys.InfoButton_DragTooltip);
 
             // Subtle darker backdrop so the strip reads as a separate control.
             var handleBg = _dragHandle.AddUIComponent<UISprite>();
@@ -206,19 +207,19 @@ namespace PoliticsMod
             switch (st.Overlay)
             {
                 case OverlayMode.Party:
-                    label  = "Politics: Party";
+                    label  = L10n.T(L10nKeys.InfoButton_Prefix, L10n.T(L10nKeys.Overlay_Party));
                     swatch = new Color32(200, 200, 255, 255);
                     break;
                 case OverlayMode.Turnout:
-                    label  = "Politics: Turnout";
+                    label  = L10n.T(L10nKeys.InfoButton_Prefix, L10n.T(L10nKeys.Overlay_Turnout));
                     swatch = new Color32(120, 200, 120, 255);
                     break;
                 case OverlayMode.Satisfaction:
-                    label  = "Politics: Satisfaction";
+                    label  = L10n.T(L10nKeys.InfoButton_Prefix, L10n.T(L10nKeys.Overlay_Satisfaction));
                     swatch = new Color32(120, 180, 220, 255);
                     break;
                 default:
-                    label  = "Politics: Off";
+                    label  = L10n.T(L10nKeys.InfoButton_Prefix, L10n.T(L10nKeys.Overlay_Off));
                     swatch = new Color32(130, 130, 130, 255);
                     break;
             }

@@ -10,6 +10,7 @@ using ColossalFramework.Math;
 using ColossalFramework.UI;
 using HarmonyLib;
 using ICities;
+using PoliticsMod.Localization;
 using UnityEngine;
 
 namespace PoliticsMod
@@ -68,14 +69,14 @@ namespace PoliticsMod
         private void BuildUI()
         {
             _title = AddUIComponent<UILabel>();
-            _title.text = "Election Stats";
+            _title.text = L10n.T(L10nKeys.Stats_Title);
             _title.textScale = 1.1f;
             _title.relativePosition = new Vector3(15, 10);
 
             UIHelpers.MakeDraggable(this);
 
             var close = AddUIComponent<UIButton>();
-            close.text = "X";
+            close.text = L10n.T(L10nKeys.Common_CloseX);
             close.size = new Vector2(28, 24);
             close.relativePosition = new Vector3(width - 35, 8);
             close.normalBgSprite = "ButtonMenu";
@@ -146,10 +147,9 @@ namespace PoliticsMod
             }
             if (st == null || st.LastResult == null)
             {
-                _subtitle.text = "No election data yet.";
+                _subtitle.text = L10n.T(L10nKeys.Stats_NoData_Subtitle);
                 var msg = _chartPanel.AddUIComponent<UILabel>();
-                msg.text =
-                    "No election stat data found.";
+                msg.text = L10n.T(L10nKeys.Stats_NoData_Body);
                 msg.textScale = 0.9f;
                 msg.autoSize = false;
                 msg.size = new Vector2(_chartPanel.width - 20f, 180f);
@@ -164,8 +164,8 @@ namespace PoliticsMod
             int total = 0;
             int[] tally = r.VotesByGrievance ?? new int[9];
             for (int i = 0; i < tally.Length; i++) total += tally[i];
-            _subtitle.text = "Election " + r.Year + "-" + r.Month +
-                             " - " + total + " votes sampled  •  Turnout " + (int)(r.Turnout * 100) + "%";
+            _subtitle.text = L10n.T(L10nKeys.Stats_Subtitle,
+                r.Year, r.Month, total, (int)(r.Turnout * 100));
 
             float y = 0f;
             // --- Shared party legend (used by all demographic charts) ---
@@ -175,15 +175,28 @@ namespace PoliticsMod
             y = DrawGrievanceChart(y, r, tally, total);
 
             // --- Demographic stacked bars ---
-            y = DrawStackedChart(y, "Vote by age group",
+            y = DrawStackedChart(y, L10n.T(L10nKeys.Stats_Chart_ByAge),
                 r.VotesByAgeParty,
-                new[] { "Young", "Adult", "Senior" });
-            y = DrawStackedChart(y, "Vote by education",
+                new[] {
+                    L10n.T(L10nKeys.Bucket_Age_Young),
+                    L10n.T(L10nKeys.Bucket_Age_Adult),
+                    L10n.T(L10nKeys.Bucket_Age_Senior)
+                });
+            y = DrawStackedChart(y, L10n.T(L10nKeys.Stats_Chart_ByEducation),
                 r.VotesByEduParty,
-                new[] { "Uneducated", "Educated", "Well-educated", "Highly-educated" });
-            y = DrawStackedChart(y, "Vote by wealth",
+                new[] {
+                    L10n.T(L10nKeys.Bucket_Edu_Uneducated),
+                    L10n.T(L10nKeys.Bucket_Edu_Educated),
+                    L10n.T(L10nKeys.Bucket_Edu_WellEducated),
+                    L10n.T(L10nKeys.Bucket_Edu_HighlyEducated)
+                });
+            y = DrawStackedChart(y, L10n.T(L10nKeys.Stats_Chart_ByWealth),
                 r.VotesByWealthParty,
-                new[] { "Low wealth", "Medium wealth", "High wealth" });
+                new[] {
+                    L10n.T(L10nKeys.Bucket_Wealth_Low),
+                    L10n.T(L10nKeys.Bucket_Wealth_Medium),
+                    L10n.T(L10nKeys.Bucket_Wealth_High)
+                });
         }
 
         // ---- Chart helpers -------------------------------------------------
@@ -192,7 +205,7 @@ namespace PoliticsMod
         private float DrawPartyLegend(float y)
         {
             var hdr = _chartPanel.AddUIComponent<UILabel>();
-            hdr.text = "Party colors";
+            hdr.text = L10n.T(L10nKeys.Stats_PartyColors);
             hdr.textScale = 0.85f;
             hdr.relativePosition = new Vector3(0, y);
             y += 20f;
@@ -219,15 +232,22 @@ namespace PoliticsMod
         private float DrawGrievanceChart(float y, ElectionResult r, int[] tally, int total)
         {
             var hdr = _chartPanel.AddUIComponent<UILabel>();
-            hdr.text = "Why people voted";
+            hdr.text = L10n.T(L10nKeys.Stats_WhyPeopleVoted);
             hdr.textScale = 0.9f;
             hdr.relativePosition = new Vector3(0, y);
             y += 22f;
 
             string[] labels = new[]
             {
-                "Pure ideology", "High taxes", "Poor health", "High crime",
-                "Poor education", "Unemployment", "Pollution", "Low land value", "Noise / trash"
+                L10n.T(L10nKeys.Stats_Grievance_Ideology),
+                L10n.T(L10nKeys.Stats_Grievance_HighTaxes),
+                L10n.T(L10nKeys.Stats_Grievance_PoorHealth),
+                L10n.T(L10nKeys.Stats_Grievance_HighCrime),
+                L10n.T(L10nKeys.Stats_Grievance_PoorEducation),
+                L10n.T(L10nKeys.Stats_Grievance_Unemployment),
+                L10n.T(L10nKeys.Stats_Grievance_Pollution),
+                L10n.T(L10nKeys.Stats_Grievance_LowLandValue),
+                L10n.T(L10nKeys.Stats_Grievance_NoiseTrash)
             };
             var colors = new Color32[]
             {
@@ -269,7 +289,7 @@ namespace PoliticsMod
 
                 var pctLbl = _chartPanel.AddUIComponent<UILabel>();
                 pctLbl.textScale = 0.75f;
-                pctLbl.text = string.Format("{0:P1}  ({1})", frac, v);
+                pctLbl.text = L10n.T(L10nKeys.Stats_PctCountFormat, frac, v);
                 pctLbl.relativePosition = new Vector3(chartW - 85, y + 2);
                 pctLbl.size = new Vector2(85, rowH);
                 y += rowH;
@@ -292,7 +312,7 @@ namespace PoliticsMod
             if (data == null)
             {
                 var msg = _chartPanel.AddUIComponent<UILabel>();
-                msg.text = "(no data - older save format)";
+                msg.text = L10n.T(L10nKeys.Stats_Chart_NoData);
                 msg.textScale = 0.75f;
                 msg.textColor = new Color32(170, 170, 170, 255);
                 msg.relativePosition = new Vector3(10, y);
@@ -340,7 +360,7 @@ namespace PoliticsMod
 
                 var totalLbl = _chartPanel.AddUIComponent<UILabel>();
                 totalLbl.textScale = 0.75f;
-                totalLbl.text = total.ToString() + " votes";
+                totalLbl.text = L10n.T(L10nKeys.Stats_Votes_Suffix, total);
                 totalLbl.relativePosition = new Vector3(chartW - 85, y + 2);
                 totalLbl.size = new Vector2(85, rowH);
                 y += rowH;
