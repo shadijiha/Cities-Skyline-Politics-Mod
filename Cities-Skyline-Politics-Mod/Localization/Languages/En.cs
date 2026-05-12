@@ -21,6 +21,8 @@ namespace PoliticsMod.Localization.Languages
             s[L10nKeys.Settings_RequireCtrl]        = "Require Ctrl modifier";
             s[L10nKeys.Settings_Group_Utilities]    = "Utilities";
             s[L10nKeys.Settings_OpenElectionsPanel] = "Open Elections panel";
+            s[L10nKeys.Settings_Language]           = "Language";
+            s[L10nKeys.Settings_Language_Auto]      = "Auto (game language)";
 
             // Common
             s[L10nKeys.Common_CloseX] = "X";

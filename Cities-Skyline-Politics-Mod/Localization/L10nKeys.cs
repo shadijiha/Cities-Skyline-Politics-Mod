@@ -16,6 +16,8 @@ namespace PoliticsMod.Localization
         public const string Settings_RequireCtrl           = "Settings_RequireCtrl";
         public const string Settings_Group_Utilities       = "Settings_Group_Utilities";
         public const string Settings_OpenElectionsPanel    = "Settings_OpenElectionsPanel";
+        public const string Settings_Language              = "Settings_Language";
+        public const string Settings_Language_Auto         = "Settings_Language_Auto";
 
         // Common
         public const string Common_CloseX   = "Common_CloseX";

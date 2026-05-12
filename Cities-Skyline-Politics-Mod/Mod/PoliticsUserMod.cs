@@ -42,6 +42,26 @@ namespace PoliticsMod
         public void OnSettingsUI(UIHelperBase helper)
         {
             var group = helper.AddGroup(L10n.T(L10nKeys.Settings_Group_Main));
+
+            // --- Language selector --------------------------------------
+            // "Auto" follows the game language if we have a catalog for it,
+            // otherwise falls back to English. Any other entry locks the UI
+            // to that language regardless of the game setting.
+            var langCodes = BuildLanguageCodeList();   // [""] + L10n.SupportedCodes()
+            var langLabels = new string[langCodes.Count];
+            int langSelected = 0;
+            for (int i = 0; i < langCodes.Count; i++)
+            {
+                langLabels[i] = LanguageDropdownLabel(langCodes[i]);
+                if (langCodes[i] == (RuntimeConfig.LanguageOverride ?? "")) langSelected = i;
+            }
+            group.AddDropdown(L10n.T(L10nKeys.Settings_Language), langLabels, langSelected, v =>
+            {
+                if (v < 0 || v >= langCodes.Count) return;
+                L10n.SetOverride(langCodes[v]);
+                ModSettings.Save();
+            });
+
             group.AddCheckbox(L10n.T(L10nKeys.Settings_EnableDebugLogging), DebugFlags.Verbose, v =>
             {
                 DebugFlags.Verbose = v;
@@ -104,6 +124,28 @@ namespace PoliticsMod
         public static void Log(string msg)
         {
             if (DebugFlags.Verbose) Debug.Log(Config.LogPrefix + msg);
+        }
+
+        // Codes for the language dropdown. First entry is "" (Auto),
+        // followed by every registered catalog code.
+        private static List<string> BuildLanguageCodeList()
+        {
+            var list = new List<string>();
+            list.Add("");                              // Auto
+            foreach (var c in L10n.SupportedCodes())   // en, zh, ja, pt, ru, ...
+                list.Add(c);
+            return list;
+        }
+
+        // Label shown in the dropdown for a given code. "" renders as
+        // "Auto (game language)"; every other code renders as the catalog's
+        // native display name (e.g. "简体中文", "Русский").
+        private static string LanguageDropdownLabel(string code)
+        {
+            if (string.IsNullOrEmpty(code)) return L10n.T(L10nKeys.Settings_Language_Auto);
+            var lang = L10n.GetCatalog(code);
+            if (lang != null && !string.IsNullOrEmpty(lang.DisplayName)) return lang.DisplayName;
+            return code;
         }
     }
 }

@@ -101,6 +101,9 @@ namespace PoliticsMod
                                     RuntimeConfig.InfoButtonY = f;
                                 break;
                             }
+                        case "LanguageOverride":
+                            RuntimeConfig.LanguageOverride = v ?? "";
+                            break;
                     }
                 }
             }
@@ -131,6 +134,7 @@ namespace PoliticsMod
                     RuntimeConfig.InfoButtonX.ToString(System.Globalization.CultureInfo.InvariantCulture));
                 AppendNode(doc, root, "InfoButtonY",
                     RuntimeConfig.InfoButtonY.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                AppendNode(doc, root, "LanguageOverride", RuntimeConfig.LanguageOverride ?? "");
                 doc.Save(path);
             }
             catch (Exception e)

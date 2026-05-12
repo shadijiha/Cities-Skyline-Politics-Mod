@@ -88,16 +88,35 @@ namespace PoliticsMod.Localization
             return codes;
         }
 
+        // Lookup a registered catalog by its locale code. Returns null if
+        // unknown. Useful for reading a catalog's DisplayName for UI.
+        public static Language GetCatalog(string code)
+        {
+            if (string.IsNullOrEmpty(code)) return null;
+            Language lang;
+            return _catalogs.TryGetValue(code, out lang) ? lang : null;
+        }
+
         // Add new languages here.
         private static void RegisterAll()
         {
             Register(Languages.En.Build());
-            // Register(Languages.De.Build());
-            // Register(Languages.Fr.Build());
+            Register(Languages.Zh.Build());
+            Register(Languages.Ja.Build());
+            Register(Languages.Pt.Build());
+            Register(Languages.Ru.Build());
         }
 
         private static void SelectForGameLanguage()
         {
+            // User-locked override takes precedence over the game language.
+            string overrideCode = RuntimeConfig.LanguageOverride;
+            if (!string.IsNullOrEmpty(overrideCode) && _catalogs.ContainsKey(overrideCode))
+            {
+                _current = _catalogs[overrideCode];
+                return;
+            }
+
             string gameCode = TryGetGameLanguage();
             if (!string.IsNullOrEmpty(gameCode) && _catalogs.ContainsKey(gameCode))
             {
@@ -108,6 +127,26 @@ namespace PoliticsMod.Localization
                 _current = _fallback;
                 if (!string.IsNullOrEmpty(gameCode))
                     PoliticsUserMod.Log("L10n: '" + gameCode + "' unsupported, using English.");
+            }
+        }
+
+        // Set (or clear) the user's language override. Pass "" to revert to
+        // Auto (follow game language). Fires LanguageChanged if the effective
+        // catalog changes. Does NOT persist - caller should ModSettings.Save().
+        public static void SetOverride(string code)
+        {
+            string previous = CurrentCode;
+            RuntimeConfig.LanguageOverride = code ?? "";
+            SelectForGameLanguage();
+            if (CurrentCode == previous) return;
+
+            PoliticsUserMod.Log("L10n: override='" + (code ?? "") + "' -> '" + CurrentCode + "'");
+            var h = LanguageChanged;
+            if (h == null) return;
+            try { h(); }
+            catch (Exception e)
+            {
+                Debug.LogError(Config.LogPrefix + "L10n: handler threw: " + e);
             }
         }
 

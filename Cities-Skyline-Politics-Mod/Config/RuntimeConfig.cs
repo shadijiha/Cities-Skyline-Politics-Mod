@@ -55,6 +55,12 @@ namespace PoliticsMod
         public static float InfoButtonX = -1f;
         public static float InfoButtonY = -1f;
 
+        // Locked UI language. Empty string = follow the game language
+        // (Auto). Any other value must be a registered catalog code
+        // ("en", "zh", "ja", "pt", "ru"). Edited via the mod settings UI
+        // and persisted in the XML.
+        public static string LanguageOverride = "";
+
         // Hard bounds so sliders stay sane. Change only if you need longer/shorter.
         public const float MinTerm     = 7f;    public const float MaxTerm     = 1825f; // 1 week .. 5 years
         public const float MinCampaign = 1f;    public const float MaxCampaign = 180f;  // 1 day .. 6 months
