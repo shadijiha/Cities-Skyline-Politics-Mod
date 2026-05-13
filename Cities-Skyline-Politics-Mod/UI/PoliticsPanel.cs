@@ -368,7 +368,7 @@ namespace PoliticsMod
             if (st.Phase == ElectionPhase.Campaign)
             {
                 _phaseLabel.text = L10n.T(L10nKeys.Panel_Phase_Campaign,
-                    st.Phase,
+                    LocalizedPhaseName(st.Phase),
                     Mathf.Clamp((int)st.DaysSinceCampaignStart + 1,
                                 1, (int)RuntimeConfig.CampaignLengthDays),
                     (int)RuntimeConfig.CampaignLengthDays);
@@ -376,7 +376,8 @@ namespace PoliticsMod
             else
             {
                 _phaseLabel.text = L10n.T(L10nKeys.Panel_Phase_Term,
-                    st.Phase, (int)st.DaysSinceLastElection, (int)RuntimeConfig.TermLengthDays);
+                    LocalizedPhaseName(st.Phase),
+                    (int)st.DaysSinceLastElection, (int)RuntimeConfig.TermLengthDays);
             }
 
             // Parliament hemicycle + legend
@@ -430,6 +431,20 @@ namespace PoliticsMod
                 case OverlayMode.Turnout:      return L10n.T(L10nKeys.Overlay_Turnout);
                 case OverlayMode.Satisfaction: return L10n.T(L10nKeys.Overlay_Satisfaction);
                 default:                       return L10n.T(L10nKeys.Overlay_Off);
+            }
+        }
+
+        private static string LocalizedPhaseName(ElectionPhase p)
+        {
+            switch (p)
+            {
+                case ElectionPhase.Idle:      return L10n.T(L10nKeys.Phase_Idle);
+                case ElectionPhase.Campaign:  return L10n.T(L10nKeys.Phase_Campaign);
+                case ElectionPhase.Voting:    return L10n.T(L10nKeys.Phase_Voting);
+                case ElectionPhase.Forming:   return L10n.T(L10nKeys.Phase_Forming);
+                case ElectionPhase.Governing: return L10n.T(L10nKeys.Phase_Governing);
+                case ElectionPhase.Failed:    return L10n.T(L10nKeys.Phase_Failed);
+                default:                      return p.ToString();
             }
         }
 

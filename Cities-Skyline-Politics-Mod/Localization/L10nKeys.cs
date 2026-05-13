@@ -43,6 +43,14 @@ namespace PoliticsMod.Localization
         public const string Panel_Days                        = "Panel_Days";
         public const string Panel_Phase_Campaign              = "Panel_Phase_Campaign";
         public const string Panel_Phase_Term                  = "Panel_Phase_Term";
+
+        // Election phase names (ElectionPhase enum).
+        public const string Phase_Idle                        = "Phase_Idle";
+        public const string Phase_Campaign                    = "Phase_Campaign";
+        public const string Phase_Voting                      = "Phase_Voting";
+        public const string Phase_Forming                     = "Phase_Forming";
+        public const string Phase_Governing                   = "Phase_Governing";
+        public const string Phase_Failed                      = "Phase_Failed";
         public const string Panel_Coalition_Header            = "Panel_Coalition_Header";
         public const string Panel_Coalition_None              = "Panel_Coalition_None";
         public const string Panel_Policies_More               = "Panel_Policies_More";

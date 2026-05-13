@@ -55,6 +55,12 @@ namespace PoliticsMod.Localization.Languages
             s[L10nKeys.Panel_Days]                   = "{0} days";
             s[L10nKeys.Panel_Phase_Campaign]         = "Phase: {0} | Day {1}/{2} of campaign";
             s[L10nKeys.Panel_Phase_Term]             = "Phase: {0} | Day {1}/{2} of term";
+            s[L10nKeys.Phase_Idle]                   = "Idle";
+            s[L10nKeys.Phase_Campaign]               = "Campaign";
+            s[L10nKeys.Phase_Voting]                 = "Voting";
+            s[L10nKeys.Phase_Forming]                = "Forming";
+            s[L10nKeys.Phase_Governing]              = "Governing";
+            s[L10nKeys.Phase_Failed]                 = "Failed";
             s[L10nKeys.Panel_Coalition_Header]       = "Coalition: {0}  ({1}/{2})";
             s[L10nKeys.Panel_Coalition_None]         = "Coalition: (none)";
             s[L10nKeys.Panel_Policies_More]          = "+{0}";

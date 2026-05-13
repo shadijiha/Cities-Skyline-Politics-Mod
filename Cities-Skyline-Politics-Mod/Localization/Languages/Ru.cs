@@ -57,6 +57,12 @@ namespace PoliticsMod.Localization.Languages
             s[L10nKeys.Panel_Days]                   = "{0} дн.";
             s[L10nKeys.Panel_Phase_Campaign]         = "Фаза: {0} | День {1}/{2} кампании";
             s[L10nKeys.Panel_Phase_Term]             = "Фаза: {0} | День {1}/{2} срока";
+            s[L10nKeys.Phase_Idle]                   = "Ожидание";
+            s[L10nKeys.Phase_Campaign]               = "Кампания";
+            s[L10nKeys.Phase_Voting]                 = "Голосование";
+            s[L10nKeys.Phase_Forming]                = "Формирование коалиции";
+            s[L10nKeys.Phase_Governing]              = "У власти";
+            s[L10nKeys.Phase_Failed]                 = "Коалиция не собрана";
             s[L10nKeys.Panel_Coalition_Header]       = "Коалиция: {0}  ({1}/{2})";
             s[L10nKeys.Panel_Coalition_None]         = "Коалиция: (нет)";
             s[L10nKeys.Panel_Policies_More]          = "+{0}";

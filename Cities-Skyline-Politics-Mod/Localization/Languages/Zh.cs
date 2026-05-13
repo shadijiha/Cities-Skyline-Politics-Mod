@@ -54,6 +54,12 @@ namespace PoliticsMod.Localization.Languages
             s[L10nKeys.Panel_Days]                   = "{0} 天";
             s[L10nKeys.Panel_Phase_Campaign]         = "阶段:{0} | 竞选期第 {1}/{2} 天";
             s[L10nKeys.Panel_Phase_Term]             = "阶段:{0} | 任期第 {1}/{2} 天";
+            s[L10nKeys.Phase_Idle]                   = "空闲";
+            s[L10nKeys.Phase_Campaign]               = "竞选中";
+            s[L10nKeys.Phase_Voting]                 = "投票中";
+            s[L10nKeys.Phase_Forming]                = "组阁中";
+            s[L10nKeys.Phase_Governing]              = "执政中";
+            s[L10nKeys.Phase_Failed]                 = "组阁失败";
             s[L10nKeys.Panel_Coalition_Header]       = "执政联盟:{0}  ({1}/{2})";
             s[L10nKeys.Panel_Coalition_None]         = "执政联盟:(无)";
             s[L10nKeys.Panel_Policies_More]          = "+{0}";

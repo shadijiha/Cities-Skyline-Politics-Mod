@@ -55,6 +55,12 @@ namespace PoliticsMod.Localization.Languages
             s[L10nKeys.Panel_Days]                   = "{0} 日";
             s[L10nKeys.Panel_Phase_Campaign]         = "フェーズ: {0} | 選挙戦 {1}/{2} 日目";
             s[L10nKeys.Panel_Phase_Term]             = "フェーズ: {0} | 任期 {1}/{2} 日目";
+            s[L10nKeys.Phase_Idle]                   = "待機中";
+            s[L10nKeys.Phase_Campaign]               = "選挙戦中";
+            s[L10nKeys.Phase_Voting]                 = "投票中";
+            s[L10nKeys.Phase_Forming]                = "連立交渉中";
+            s[L10nKeys.Phase_Governing]              = "政権運営中";
+            s[L10nKeys.Phase_Failed]                 = "連立失敗";
             s[L10nKeys.Panel_Coalition_Header]       = "連立: {0}  ({1}/{2})";
             s[L10nKeys.Panel_Coalition_None]         = "連立: (なし)";
             s[L10nKeys.Panel_Policies_More]          = "+{0}";
