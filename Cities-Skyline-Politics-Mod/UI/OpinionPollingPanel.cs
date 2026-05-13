@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using ColossalFramework.UI;
+using PoliticsMod.Localization;
 using UnityEngine;
 
 namespace PoliticsMod
@@ -40,6 +41,7 @@ namespace PoliticsMod
         private UILabel _subtitle;
         private UIPanel _chart;        // backdrop; chart contents live in OnGUI
         private UIPanel _legendRow;
+        private UIButton _closeBtn;
 
         // Rolling-average window. 7 feels right at 30 days of data - enough
         // to smooth daily noise without lagging behind real shifts.
@@ -61,20 +63,21 @@ namespace PoliticsMod
             relativePosition = new Vector3(140, 60);
 
             _title = AddUIComponent<UILabel>();
-            _title.text = "Opinion Polling";
+            _title.text = L10n.T(L10nKeys.Polling_Title);
             _title.textScale = 1.1f;
             _title.relativePosition = new Vector3(15, 10);
 
             UIHelpers.MakeDraggable(this);
 
             var close = AddUIComponent<UIButton>();
-            close.text = "X";
+            close.text = L10n.T(L10nKeys.Common_CloseX);
             close.size = new Vector2(28, 24);
             close.relativePosition = new Vector3(width - 35, 8);
             close.normalBgSprite  = "ButtonMenu";
             close.hoveredBgSprite = "ButtonMenuHovered";
             close.pressedBgSprite = "ButtonMenuPressed";
             close.eventClick += (c, p) => { isVisible = false; };
+            _closeBtn = close;
 
             _subtitle = AddUIComponent<UILabel>();
             _subtitle.textScale = 0.85f;
@@ -92,6 +95,25 @@ namespace PoliticsMod
             _chart.backgroundSprite = "GenericPanel";
             _chart.color = new Color32(30, 30, 35, 230);
 
+            RefreshLegendAndSubtitle();
+
+            L10n.LanguageChanged += OnLanguageChanged;
+        }
+
+        public override void OnDestroy()
+        {
+            L10n.LanguageChanged -= OnLanguageChanged;
+            base.OnDestroy();
+        }
+
+        private void OnLanguageChanged()
+        {
+            if (_title    != null) _title.text    = L10n.T(L10nKeys.Polling_Title);
+            if (_closeBtn != null) _closeBtn.text = L10n.T(L10nKeys.Common_CloseX);
+            // Subtitle + legend use L10n.T inside; rebuilding them is the
+            // single call that picks up the new catalog. Chart itself lives
+            // in OnGUI with x-axis labels read from L10n every frame, so
+            // nothing else needs touching.
             RefreshLegendAndSubtitle();
         }
 
@@ -127,12 +149,11 @@ namespace PoliticsMod
             var history = OpinionPolling.History;
             if (history.Count == 0)
             {
-                _subtitle.text = "No polling data yet - samples are collected each in-game day.";
+                _subtitle.text = L10n.T(L10nKeys.Polling_NoHistory);
             }
             else
             {
-                _subtitle.text = string.Format(
-                    "Daily opinion poll - sample size {0} - showing last {1} day(s)",
+                _subtitle.text = L10n.T(L10nKeys.Polling_Subtitle,
                     OpinionPolling.SampleSize, history.Count);
             }
             _legendPartyCount = Config.Parties.Length;
@@ -234,10 +255,10 @@ namespace PoliticsMod
             int dayOldest = history[0].DayIndex;
             int span = Math.Max(1, dayNewest - dayOldest);
             GUI.Label(new Rect(plotX, plotY + plotH + 4f * sy, 40f * sx, 14f * sy),
-                      "-" + (dayNewest - dayOldest) + "d", gridStyle);
+                      L10n.T(L10nKeys.Polling_Axis_DaysAgo, dayNewest - dayOldest), gridStyle);
             GUI.Label(new Rect(plotX + plotW - 30f * sx, plotY + plotH + 4f * sy,
                                40f * sx, 14f * sy),
-                      "today", gridStyle);
+                      L10n.T(L10nKeys.Polling_Axis_Today), gridStyle);
 
             // --- Rolling-average trend lines (drawn under dots) ---
             for (int p = 0; p < n; p++)

@@ -10,6 +10,7 @@ using ColossalFramework.Math;
 using ColossalFramework.UI;
 using HarmonyLib;
 using ICities;
+using PoliticsMod.Localization;
 using UnityEngine;
 
 namespace PoliticsMod
@@ -61,19 +62,35 @@ namespace PoliticsMod
             relativePosition = new Vector3(180, 80);
             BuildUI();
             // Visibility controlled by Toggle()
+            L10n.LanguageChanged += OnLanguageChanged;
+        }
+
+        public override void OnDestroy()
+        {
+            L10n.LanguageChanged -= OnLanguageChanged;
+            base.OnDestroy();
+        }
+
+        private void OnLanguageChanged()
+        {
+            var kids = new List<GameObject>();
+            foreach (Transform t in transform) kids.Add(t.gameObject);
+            foreach (var g in kids) UnityEngine.Object.Destroy(g);
+            _rows.Clear();
+            BuildUI();
         }
 
         private void BuildUI()
         {
             var title = AddUIComponent<UILabel>();
-            title.text = "Voter Traits - Economic Axis Bias (-1 left ... +1 right)";
+            title.text = L10n.T(L10nKeys.VoterTraits_Title);
             title.textScale = 1.0f;
             title.relativePosition = new Vector3(15, 10);
 
             UIHelpers.MakeDraggable(this);
 
             var close = AddUIComponent<UIButton>();
-            close.text = "X";
+            close.text = L10n.T(L10nKeys.Common_CloseX);
             close.size = new Vector2(28, 24);
             close.relativePosition = new Vector3(width - 35, 8);
             close.normalBgSprite = "ButtonMenu";
@@ -82,10 +99,7 @@ namespace PoliticsMod
             close.eventClick += (c, p) => { isVisible = false; };
 
             var note = AddUIComponent<UILabel>();
-            note.text =
-                "Nudges voters on the economic axis. Negative = left-leaning (higher\n" +
-                "taxes, stronger services). Positive = right-leaning (lower taxes,\n" +
-                "business-friendly). Only Young, Adult, and Senior citizens vote.";
+            note.text = L10n.T(L10nKeys.VoterTraits_Note);
             note.textScale = 0.72f;
             note.textColor = new Color32(190, 190, 195, 255);
             note.relativePosition = new Vector3(15, 34);
@@ -94,70 +108,51 @@ namespace PoliticsMod
             note.size = new Vector2(width - 30, 60);
 
             float y = 100f;
-            y = AddSection("Education", y);
-            y = AddRow(y, "Uneducated",        () => VoterTraits.BiasEduUneducated,     v => VoterTraits.BiasEduUneducated     = v);
-            y = AddRow(y, "Educated",          () => VoterTraits.BiasEduEducated,       v => VoterTraits.BiasEduEducated       = v);
-            y = AddRow(y, "Well-educated",     () => VoterTraits.BiasEduWellEducated,   v => VoterTraits.BiasEduWellEducated   = v);
-            y = AddRow(y, "Highly-educated",   () => VoterTraits.BiasEduHighlyEducated, v => VoterTraits.BiasEduHighlyEducated = v);
+            y = AddSection(L10n.T(L10nKeys.VoterTraits_Section_Education), y);
+            y = AddRow(y, L10n.T(L10nKeys.VoterTraits_Edu_Uneducated),        () => VoterTraits.BiasEduUneducated,     v => VoterTraits.BiasEduUneducated     = v);
+            y = AddRow(y, L10n.T(L10nKeys.VoterTraits_Edu_Educated),          () => VoterTraits.BiasEduEducated,       v => VoterTraits.BiasEduEducated       = v);
+            y = AddRow(y, L10n.T(L10nKeys.VoterTraits_Edu_WellEducated),      () => VoterTraits.BiasEduWellEducated,   v => VoterTraits.BiasEduWellEducated   = v);
+            y = AddRow(y, L10n.T(L10nKeys.VoterTraits_Edu_HighlyEducated),    () => VoterTraits.BiasEduHighlyEducated, v => VoterTraits.BiasEduHighlyEducated = v);
             y += 6f;
-            y = AddSection("Wealth", y);
-            y = AddRow(y, "Low wealth",        () => VoterTraits.BiasWealthLow,    v => VoterTraits.BiasWealthLow    = v);
-            y = AddRow(y, "Medium wealth",     () => VoterTraits.BiasWealthMedium, v => VoterTraits.BiasWealthMedium = v);
-            y = AddRow(y, "High wealth",       () => VoterTraits.BiasWealthHigh,   v => VoterTraits.BiasWealthHigh   = v);
+            y = AddSection(L10n.T(L10nKeys.VoterTraits_Section_Wealth), y);
+            y = AddRow(y, L10n.T(L10nKeys.VoterTraits_Wealth_Low),            () => VoterTraits.BiasWealthLow,    v => VoterTraits.BiasWealthLow    = v);
+            y = AddRow(y, L10n.T(L10nKeys.VoterTraits_Wealth_Medium),         () => VoterTraits.BiasWealthMedium, v => VoterTraits.BiasWealthMedium = v);
+            y = AddRow(y, L10n.T(L10nKeys.VoterTraits_Wealth_High),           () => VoterTraits.BiasWealthHigh,   v => VoterTraits.BiasWealthHigh   = v);
             y += 6f;
-            y = AddSection("Employment", y);
-            y = AddRow(y, "Employed",          () => VoterTraits.BiasEmployed,   v => VoterTraits.BiasEmployed   = v);
-            y = AddRow(y, "Unemployed",        () => VoterTraits.BiasUnemployed, v => VoterTraits.BiasUnemployed = v);
+            y = AddSection(L10n.T(L10nKeys.VoterTraits_Section_Employment), y);
+            y = AddRow(y, L10n.T(L10nKeys.VoterTraits_Employment_Employed),   () => VoterTraits.BiasEmployed,   v => VoterTraits.BiasEmployed   = v);
+            y = AddRow(y, L10n.T(L10nKeys.VoterTraits_Employment_Unemployed), () => VoterTraits.BiasUnemployed, v => VoterTraits.BiasUnemployed = v);
             y += 6f;
-            y = AddSection("Age", y);
-            y = AddRow(y, "Young",             () => VoterTraits.BiasYoung,  v => VoterTraits.BiasYoung  = v);
-            y = AddRow(y, "Adult",             () => VoterTraits.BiasAdult,  v => VoterTraits.BiasAdult  = v);
-            y = AddRow(y, "Senior",            () => VoterTraits.BiasSenior, v => VoterTraits.BiasSenior = v);
+            y = AddSection(L10n.T(L10nKeys.VoterTraits_Section_Age), y);
+            y = AddRow(y, L10n.T(L10nKeys.VoterTraits_Age_Young),             () => VoterTraits.BiasYoung,  v => VoterTraits.BiasYoung  = v);
+            y = AddRow(y, L10n.T(L10nKeys.VoterTraits_Age_Adult),             () => VoterTraits.BiasAdult,  v => VoterTraits.BiasAdult  = v);
+            y = AddRow(y, L10n.T(L10nKeys.VoterTraits_Age_Senior),            () => VoterTraits.BiasSenior, v => VoterTraits.BiasSenior = v);
             y += 6f;
-            y = AddSection("Life conditions", y);
-            y = AddRow(y, "Sick",              () => VoterTraits.BiasSick,          v => VoterTraits.BiasSick          = v);
-            y = AddRow(y, "Lives in pollution",() => VoterTraits.BiasHighPollution, v => VoterTraits.BiasHighPollution = v);
+            y = AddSection(L10n.T(L10nKeys.VoterTraits_Section_Life), y);
+            y = AddRow(y, L10n.T(L10nKeys.VoterTraits_Life_Sick),             () => VoterTraits.BiasSick,          v => VoterTraits.BiasSick          = v);
+            y = AddRow(y, L10n.T(L10nKeys.VoterTraits_Life_Pollution),        () => VoterTraits.BiasHighPollution, v => VoterTraits.BiasHighPollution = v);
 
             y += 6f;
-            y = AddSection("Deficit sensitivity", y);
-            y = AddCustomRow(y, "Deficit multiplier",
+            y = AddSection(L10n.T(L10nKeys.VoterTraits_Section_Deficit), y);
+            y = AddCustomRow(y, L10n.T(L10nKeys.VoterTraits_Deficit_Label),
                 RuntimeConfig.MinDeficitMult, RuntimeConfig.MaxDeficitMult, 0.1f,
                 () => RuntimeConfig.DeficitPressureMultiplier,
                 v => RuntimeConfig.DeficitPressureMultiplier = v,
                 "0.00",
-                "How strongly a sustained budget deficit pushes voters toward\n" +
-                "the economic right.\n" +
-                "  0 = feature off, deficits don't move voters.\n" +
-                "  1 = default curve: up to +0.35 right-wing nudge after\n" +
-                "      about 6 consecutive deficit weeks.\n" +
-                "  2 = twice as sensitive. 3 = maximum.\n" +
-                "Applies on top of per-voter trait biases.");
+                L10n.T(L10nKeys.VoterTraits_Deficit_Tooltip));
 
             y += 6f;
-            y = AddSection("Incumbency", y);
-            y = AddCustomRow(y, "Incumbency bonus",
+            y = AddSection(L10n.T(L10nKeys.VoterTraits_Section_Incumbency), y);
+            y = AddCustomRow(y, L10n.T(L10nKeys.VoterTraits_Incumbency_Label),
                 RuntimeConfig.MinIncumbency, RuntimeConfig.MaxIncumbency, 0.01f,
                 () => RuntimeConfig.IncumbencyBonus,
                 v => RuntimeConfig.IncumbencyBonus = v,
                 "0.00",
-                "Probability a HAPPY voter rewards the sitting coalition with\n" +
-                "their vote instead of following ideology / grievances.\n" +
-                "Only applies to voters whose happiness is 60 or higher.\n" +
-                "\n" +
-                "  0.00 = incumbency has no effect; voters always pick on fit.\n" +
-                "  0.10 = default. 1 in 10 happy voters flip to the gov.\n" +
-                "  0.25 = quarter of happy voters auto-renew the gov.\n" +
-                "  0.50 = half of happy voters auto-renew the gov; strong\n" +
-                "         advantage for whoever's in power while the city is\n" +
-                "         thriving.\n" +
-                "\n" +
-                "Tip: set low (<=0.05) if you want every election to feel like\n" +
-                "an open contest, or high (>=0.25) to simulate hard-to-beat\n" +
-                "incumbents.");
+                L10n.T(L10nKeys.VoterTraits_Incumbency_Tooltip));
 
             // Reset button
             var reset = AddUIComponent<UIButton>();
-            reset.text = "Reset to defaults";
+            reset.text = L10n.T(L10nKeys.VoterTraits_Reset);
             reset.size = new Vector2(180, 28);
             reset.relativePosition = new Vector3(width - 200, height - 40);
             reset.normalBgSprite = "ButtonMenu";

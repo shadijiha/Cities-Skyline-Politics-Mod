@@ -10,6 +10,7 @@ using ColossalFramework.Math;
 using ColossalFramework.UI;
 using HarmonyLib;
 using ICities;
+using PoliticsMod.Localization;
 using UnityEngine;
 
 namespace PoliticsMod
@@ -60,6 +61,11 @@ namespace PoliticsMod
         // Add/Remove buttons at the bottom of the list.
         private UIButton _addBtn, _removeBtn;
 
+        // Header title and close glyph - retained so OnLanguageChanged
+        // can re-localize them without rebuilding the whole panel.
+        private UILabel _titleLabel;
+        private UIButton _closeBtn;
+
         public override void Start()
         {
             base.Start();
@@ -84,25 +90,47 @@ namespace PoliticsMod
             // Do NOT set isVisible here — the caller (Toggle) controls it.
             // Setting isVisible = false would fight with the Toggle that
             // triggered this Start() in the first place.
+
+            L10n.LanguageChanged += OnLanguageChanged;
+        }
+
+        public override void OnDestroy()
+        {
+            L10n.LanguageChanged -= OnLanguageChanged;
+            base.OnDestroy();
+        }
+
+        private void OnLanguageChanged()
+        {
+            // Title, close glyph, add/remove buttons sit outside the list/form
+            // rebuild paths, so re-label them manually. RebuildList + RebuildForm
+            // regenerate every other labelled widget from scratch using the
+            // current catalog.
+            if (_titleLabel != null) _titleLabel.text = L10n.T(L10nKeys.PartyEditor_Title);
+            if (_closeBtn   != null) _closeBtn.text   = L10n.T(L10nKeys.Common_CloseX);
+            if (_addBtn     != null) _addBtn.text     = L10n.T(L10nKeys.PartyEditor_Add);
+            if (_removeBtn  != null) _removeBtn.text  = L10n.T(L10nKeys.PartyEditor_Remove);
+            RebuildList();
+            RebuildForm();
         }
 
         private void BuildUI()
         {
-            var title = AddUIComponent<UILabel>();
-            title.text = "Manage Parties";
-            title.textScale = 1.2f;
-            title.relativePosition = new Vector3(15, 10);
+            _titleLabel = AddUIComponent<UILabel>();
+            _titleLabel.text = L10n.T(L10nKeys.PartyEditor_Title);
+            _titleLabel.textScale = 1.2f;
+            _titleLabel.relativePosition = new Vector3(15, 10);
 
             UIHelpers.MakeDraggable(this);
 
-            var close = AddUIComponent<UIButton>();
-            close.text = "X";
-            close.size = new Vector2(28, 24);
-            close.relativePosition = new Vector3(width - 35, 8);
-            close.normalBgSprite = "ButtonMenu";
-            close.hoveredBgSprite = "ButtonMenuHovered";
-            close.pressedBgSprite = "ButtonMenuPressed";
-            close.eventClick += (c, p) => { isVisible = false; };
+            _closeBtn = AddUIComponent<UIButton>();
+            _closeBtn.text = L10n.T(L10nKeys.Common_CloseX);
+            _closeBtn.size = new Vector2(28, 24);
+            _closeBtn.relativePosition = new Vector3(width - 35, 8);
+            _closeBtn.normalBgSprite = "ButtonMenu";
+            _closeBtn.hoveredBgSprite = "ButtonMenuHovered";
+            _closeBtn.pressedBgSprite = "ButtonMenuPressed";
+            _closeBtn.eventClick += (c, p) => { isVisible = false; };
 
             // ---- Left: party list ----
             _listPanel = AddUIComponent<UIPanel>();
@@ -110,7 +138,7 @@ namespace PoliticsMod
             _listPanel.size = new Vector2(220, height - 110);
             _listPanel.backgroundSprite = "GenericPanel";
             _listPanel.color = new Color32(40, 40, 45, 220);            _addBtn = AddUIComponent<UIButton>();
-            _addBtn.text = "+ Add party";
+            _addBtn.text = L10n.T(L10nKeys.PartyEditor_Add);
             _addBtn.size = new Vector2(105, 28);
             _addBtn.relativePosition = new Vector3(15, height - 50);
             _addBtn.normalBgSprite = "ButtonMenu";
@@ -120,7 +148,7 @@ namespace PoliticsMod
             _addBtn.eventClick += (c, p) => { OnAddClicked(); };
 
             _removeBtn = AddUIComponent<UIButton>();
-            _removeBtn.text = "– Remove";
+            _removeBtn.text = L10n.T(L10nKeys.PartyEditor_Remove);
             _removeBtn.size = new Vector2(105, 28);
             _removeBtn.relativePosition = new Vector3(130, height - 50);
             _removeBtn.normalBgSprite = "ButtonMenu";
@@ -268,7 +296,7 @@ namespace PoliticsMod
             const float fieldW = 250f;
 
             // --- Short name ---
-            AddFormLabel("Short name", 10, y);
+            AddFormLabel(L10n.T(L10nKeys.PartyEditor_ShortName), 10, y);
             _shortNameField = AddTextField(labelW, y, 100f, party.ShortName, (v) => {
                 party.ShortName = (v ?? "").Trim();
                 RebuildList();
@@ -276,7 +304,7 @@ namespace PoliticsMod
             y += 34f;
 
             // --- Full name ---
-            AddFormLabel("Full name", 10, y);
+            AddFormLabel(L10n.T(L10nKeys.PartyEditor_FullName), 10, y);
             _fullNameField = AddTextField(labelW, y, fieldW, party.FullName, (v) => {
                 party.FullName = (v ?? "").Trim();
                 RebuildList();
@@ -284,28 +312,28 @@ namespace PoliticsMod
             y += 34f;
 
             // --- Color picker: a clickable swatch that opens RGB sliders ---
-            AddFormLabel("Color", 10, y);
+            AddFormLabel(L10n.T(L10nKeys.PartyEditor_Color), 10, y);
             _colorSwatch = BuildColorPickerRow(labelW, y, party);
             y += 88f;   // swatch + R/G/B slider rows
 
             // --- Ideology sliders ---
             var header = _formPanel.AddUIComponent<UILabel>();
-            header.text = "Ideology (-1 ... +1)";
+            header.text = L10n.T(L10nKeys.PartyEditor_IdeologyHeader);
             header.textScale = 0.95f;
             header.relativePosition = new Vector3(10, y);
             y += 24f;
 
-            _econLbl = AddModSliderRow(y, "Economic (left↔right)", party.Ideology.x, -1f, +1f,
+            _econLbl = AddModSliderRow(y, L10n.T(L10nKeys.PartyEditor_Ideology_Economic), party.Ideology.x, -1f, +1f,
                 v => { party.Ideology = new Vector3(v, party.Ideology.y, party.Ideology.z); UpdateIdeologyLabels(party); },
                 out _econSlider);
             y += 44f;
 
-            _socLbl = AddModSliderRow(y, "Social (prog↔trad)", party.Ideology.y, -1f, +1f,
+            _socLbl = AddModSliderRow(y, L10n.T(L10nKeys.PartyEditor_Ideology_Social), party.Ideology.y, -1f, +1f,
                 v => { party.Ideology = new Vector3(party.Ideology.x, v, party.Ideology.z); UpdateIdeologyLabels(party); },
                 out _socSlider);
             y += 44f;
 
-            _govLbl = AddModSliderRow(y, "Governance (lib↔auth)", party.Ideology.z, -1f, +1f,
+            _govLbl = AddModSliderRow(y, L10n.T(L10nKeys.PartyEditor_Ideology_Governance), party.Ideology.z, -1f, +1f,
                 v => { party.Ideology = new Vector3(party.Ideology.x, party.Ideology.y, v); UpdateIdeologyLabels(party); },
                 out _govSlider);
             y += 50f;
@@ -314,7 +342,7 @@ namespace PoliticsMod
 
             // --- Vanilla policy tiles ---
             var polHdr = _formPanel.AddUIComponent<UILabel>();
-            polHdr.text = "Policies  (click to cycle: neutral -> support -> oppose)";
+            polHdr.text = L10n.T(L10nKeys.PartyEditor_PoliciesHeader);
             polHdr.textScale = 0.95f;
             polHdr.relativePosition = new Vector3(10, y);
             y += 22f;
@@ -377,49 +405,49 @@ namespace PoliticsMod
 
             // --- Tax modifiers ---
             var taxHdr = _formPanel.AddUIComponent<UILabel>();
-            taxHdr.text = "Tax deltas (pct points, -10 .. +10)";
+            taxHdr.text = L10n.T(L10nKeys.PartyEditor_TaxHeader);
             taxHdr.textScale = 0.9f;
             taxHdr.relativePosition = new Vector3(10, y);
             y += 22f;
 
-            y = AddModifierIntRow(y, "Residential", party.Modifiers.TaxDeltaRes,
+            y = AddModifierIntRow(y, L10n.T(L10nKeys.PartyEditor_Tax_Res), party.Modifiers.TaxDeltaRes,
                 v => party.Modifiers.TaxDeltaRes = v);
-            y = AddModifierIntRow(y, "Commercial",  party.Modifiers.TaxDeltaCom,
+            y = AddModifierIntRow(y, L10n.T(L10nKeys.PartyEditor_Tax_Com),  party.Modifiers.TaxDeltaCom,
                 v => party.Modifiers.TaxDeltaCom = v);
-            y = AddModifierIntRow(y, "Industrial",  party.Modifiers.TaxDeltaInd,
+            y = AddModifierIntRow(y, L10n.T(L10nKeys.PartyEditor_Tax_Ind),  party.Modifiers.TaxDeltaInd,
                 v => party.Modifiers.TaxDeltaInd = v);
-            y = AddModifierIntRow(y, "Office",      party.Modifiers.TaxDeltaOff,
+            y = AddModifierIntRow(y, L10n.T(L10nKeys.PartyEditor_Tax_Off),      party.Modifiers.TaxDeltaOff,
                 v => party.Modifiers.TaxDeltaOff = v);
 
             y += 4f;
             // --- Budget modifiers ---
             var budHdr = _formPanel.AddUIComponent<UILabel>();
-            budHdr.text = "Budget deltas (pct points, -30 .. +30)";
+            budHdr.text = L10n.T(L10nKeys.PartyEditor_BudgetHeader);
             budHdr.textScale = 0.9f;
             budHdr.relativePosition = new Vector3(10, y);
             y += 22f;
 
-            y = AddBudgetRow(y, "Electricity",    party.Modifiers.BudgetDeltaElectricity,
+            y = AddBudgetRow(y, L10n.T(L10nKeys.PartyEditor_Budget_Electricity),    party.Modifiers.BudgetDeltaElectricity,
                 v => party.Modifiers.BudgetDeltaElectricity = v);
-            y = AddBudgetRow(y, "Water",          party.Modifiers.BudgetDeltaWater,
+            y = AddBudgetRow(y, L10n.T(L10nKeys.PartyEditor_Budget_Water),          party.Modifiers.BudgetDeltaWater,
                 v => party.Modifiers.BudgetDeltaWater = v);
-            y = AddBudgetRow(y, "Garbage",        party.Modifiers.BudgetDeltaGarbage,
+            y = AddBudgetRow(y, L10n.T(L10nKeys.PartyEditor_Budget_Garbage),        party.Modifiers.BudgetDeltaGarbage,
                 v => party.Modifiers.BudgetDeltaGarbage = v);
-            y = AddBudgetRow(y, "Healthcare",     party.Modifiers.BudgetDeltaHealth,
+            y = AddBudgetRow(y, L10n.T(L10nKeys.PartyEditor_Budget_Healthcare),     party.Modifiers.BudgetDeltaHealth,
                 v => party.Modifiers.BudgetDeltaHealth = v);
-            y = AddBudgetRow(y, "Fire",           party.Modifiers.BudgetDeltaFire,
+            y = AddBudgetRow(y, L10n.T(L10nKeys.PartyEditor_Budget_Fire),           party.Modifiers.BudgetDeltaFire,
                 v => party.Modifiers.BudgetDeltaFire = v);
-            y = AddBudgetRow(y, "Police",         party.Modifiers.BudgetDeltaPolice,
+            y = AddBudgetRow(y, L10n.T(L10nKeys.PartyEditor_Budget_Police),         party.Modifiers.BudgetDeltaPolice,
                 v => party.Modifiers.BudgetDeltaPolice = v);
-            y = AddBudgetRow(y, "Education",      party.Modifiers.BudgetDeltaEducation,
+            y = AddBudgetRow(y, L10n.T(L10nKeys.PartyEditor_Budget_Education),      party.Modifiers.BudgetDeltaEducation,
                 v => party.Modifiers.BudgetDeltaEducation = v);
-            y = AddBudgetRow(y, "Transport",      party.Modifiers.BudgetDeltaTransport,
+            y = AddBudgetRow(y, L10n.T(L10nKeys.PartyEditor_Budget_Transport),      party.Modifiers.BudgetDeltaTransport,
                 v => party.Modifiers.BudgetDeltaTransport = v);
-            y = AddBudgetRow(y, "Beautification", party.Modifiers.BudgetDeltaBeautification,
+            y = AddBudgetRow(y, L10n.T(L10nKeys.PartyEditor_Budget_Beautification), party.Modifiers.BudgetDeltaBeautification,
                 v => party.Modifiers.BudgetDeltaBeautification = v);
-            y = AddBudgetRow(y, "Roads",          party.Modifiers.BudgetDeltaRoads,
+            y = AddBudgetRow(y, L10n.T(L10nKeys.PartyEditor_Budget_Roads),          party.Modifiers.BudgetDeltaRoads,
                 v => party.Modifiers.BudgetDeltaRoads = v);
-            y = AddBudgetRow(y, "Industry",       party.Modifiers.BudgetDeltaIndustry,
+            y = AddBudgetRow(y, L10n.T(L10nKeys.PartyEditor_Budget_Industry),       party.Modifiers.BudgetDeltaIndustry,
                 v => party.Modifiers.BudgetDeltaIndustry = v);
 
             // Add an invisible spacer child at the bottom of the form. The
@@ -568,21 +596,21 @@ namespace PoliticsMod
                     hoverBg = "EmptySprite";
                     pressBg = "EmptySprite";
                     col = new Color32( 60, 200,  80, 255); // clean green fill
-                    tip = FormatPolicyName(policy) + "\nSupport: will be enacted when elected";
+                    tip = L10n.T(L10nKeys.PartyEditor_Stance_Support, FormatPolicyName(policy));
                     break;
                 case PolicyStance.Oppose:
                     bg      = "EmptySprite";
                     hoverBg = "EmptySprite";
                     pressBg = "EmptySprite";
                     col = new Color32(220,  40,  40, 255); // clean red fill
-                    tip = FormatPolicyName(policy) + "\nOppose: will be repealed when elected";
+                    tip = L10n.T(L10nKeys.PartyEditor_Stance_Oppose, FormatPolicyName(policy));
                     break;
                 default:
                     bg      = "ButtonMenu";
                     hoverBg = "ButtonMenuHovered";
                     pressBg = "ButtonMenuPressed";
                     col = new Color32(255, 255, 255, 255);
-                    tip = FormatPolicyName(policy) + "\nNeutral: left alone when elected";
+                    tip = L10n.T(L10nKeys.PartyEditor_Stance_Neutral, FormatPolicyName(policy));
                     break;
             }
             btn.normalBgSprite   = bg;
@@ -861,12 +889,12 @@ namespace PoliticsMod
                 if (!used.Contains(key)) { pick = c; break; }
             }
             int newIdx = Config.Parties.Length;
-            string shortName = "NEW" + (newIdx + 1);
+            string shortName = L10n.T(L10nKeys.PartyEditor_NewPartyShortName, newIdx + 1);
             var newParty = new PartyDef
             {
                 Id = newIdx,
                 ShortName = shortName,
-                FullName = "New Party " + (newIdx + 1),
+                FullName = L10n.T(L10nKeys.PartyEditor_NewPartyFullName, newIdx + 1),
                 Color = pick,
                 Ideology = Vector3.zero,
                 VanillaPolicies = new DistrictPolicies.Policies[0],

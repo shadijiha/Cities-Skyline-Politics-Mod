@@ -10,6 +10,7 @@ using ColossalFramework.Math;
 using ColossalFramework.UI;
 using HarmonyLib;
 using ICities;
+using PoliticsMod.Localization;
 using UnityEngine;
 
 namespace PoliticsMod
@@ -66,25 +67,42 @@ namespace PoliticsMod
             relativePosition = new Vector3(120, 80);
             Instance = this;
             BuildUI();
+            L10n.LanguageChanged += OnLanguageChanged;
         }
 
         public override void OnDestroy()
         {
+            L10n.LanguageChanged -= OnLanguageChanged;
             if (Instance == this) Instance = null;
             base.OnDestroy();
+        }
+
+        // Destroy every child and rebuild the panel from scratch so all
+        // localized labels pick up the new language. The panel has no
+        // user-editable state beyond what's already in RuntimeConfig, so a
+        // full rebuild is the simplest correct refresh.
+        private void OnLanguageChanged()
+        {
+            // Tear down every child.
+            var kids = new List<GameObject>();
+            foreach (Transform t in transform) kids.Add(t.gameObject);
+            foreach (var g in kids) UnityEngine.Object.Destroy(g);
+            // Reset caches.
+            _lastPoliciesHash = -1;
+            BuildUI();
         }
 
         private void BuildUI()
         {
             _title = AddUIComponent<UILabel>();
-            _title.text = "Politics & Elections";
+            _title.text = L10n.T(L10nKeys.Panel_Title);
             _title.textScale = 1.2f;
             _title.relativePosition = new Vector3(15, 10);
 
             UIHelpers.MakeDraggable(this);
 
             var close = AddUIComponent<UIButton>();
-            close.text = "X";
+            close.text = L10n.T(L10nKeys.Common_CloseX);
             close.size = new Vector2(28, 24);
             close.relativePosition = new Vector3(width - 35, 8);
             close.normalBgSprite = "ButtonMenu";
@@ -100,11 +118,10 @@ namespace PoliticsMod
             _hemi = AddUIComponent<HemicycleView>();
             _hemi.relativePosition = new Vector3(15, 70);
             _hemi.size = new Vector2(width - 30, 170);
-            _hemi.tooltip =
-                "Parliament size scales with your population:\n"
-                + "1 seat per " + Config.SeatsPerCitizens + " citizens "
-                + "(min " + Config.MinParliamentSeats
-                + ", max " + Config.MaxParliamentSeats + ").";
+            _hemi.tooltip = L10n.T(L10nKeys.Panel_Hemi_Tooltip,
+                Config.SeatsPerCitizens,
+                Config.MinParliamentSeats,
+                Config.MaxParliamentSeats);
 
             _legend = AddUIComponent<PartyLegendRow>();
             _legend.relativePosition = new Vector3(15, 70 + 170 + 2);
@@ -128,7 +145,7 @@ namespace PoliticsMod
             _policiesLabel.autoSize = false;
             _policiesLabel.size = new Vector2(105, 18);
             _policiesLabel.clipChildren = true;
-            _policiesLabel.text = "Active policies:";
+            _policiesLabel.text = L10n.T(L10nKeys.Panel_ActivePolicies);
 
             // Icon row sits immediately to the right of the label and holds
             // one UISprite per active policy. Populated by RebuildPoliciesIcons
@@ -140,7 +157,7 @@ namespace PoliticsMod
             _policiesIconRow.autoLayout = false;
 
             _overlayBtn = AddUIComponent<UIButton>();
-            _overlayBtn.text = "Overlay: Off";
+            _overlayBtn.text = L10n.T(L10nKeys.Panel_Overlay_Prefix, L10n.T(L10nKeys.Overlay_Off));
             _overlayBtn.size = new Vector2(200, 32);
             _overlayBtn.relativePosition = new Vector3(15, height - 90);
             _overlayBtn.normalBgSprite = "ButtonMenu";
@@ -153,7 +170,7 @@ namespace PoliticsMod
             };
 
             _forceBtn = AddUIComponent<UIButton>();
-            _forceBtn.text = "Call snap election";
+            _forceBtn.text = L10n.T(L10nKeys.Panel_Button_CallSnapElection);
             _forceBtn.size = new Vector2(200, 32);
             _forceBtn.relativePosition = new Vector3(230, height - 90);
             _forceBtn.normalBgSprite = "ButtonMenu";
@@ -168,7 +185,7 @@ namespace PoliticsMod
 
             // -------- Manage Parties button --------
             var manageBtn = AddUIComponent<UIButton>();
-            manageBtn.text = "Manage Parties";
+            manageBtn.text = L10n.T(L10nKeys.Panel_Button_ManageParties);
             manageBtn.size = new Vector2(200, 32);
             manageBtn.relativePosition = new Vector3(15, height - 50);
             manageBtn.normalBgSprite = "ButtonMenu";
@@ -182,7 +199,7 @@ namespace PoliticsMod
 
             // -------- Voter Traits button --------
             var traitsBtn = AddUIComponent<UIButton>();
-            traitsBtn.text = "Voter Traits";
+            traitsBtn.text = L10n.T(L10nKeys.Panel_Button_VoterTraits);
             traitsBtn.size = new Vector2(200, 32);
             traitsBtn.relativePosition = new Vector3(230, height - 50);
             traitsBtn.normalBgSprite = "ButtonMenu";
@@ -196,7 +213,7 @@ namespace PoliticsMod
 
             // -------- Election Stats button --------
             var statsBtn = AddUIComponent<UIButton>();
-            statsBtn.text = "Election Stats";
+            statsBtn.text = L10n.T(L10nKeys.Panel_Button_ElectionStats);
             statsBtn.size = new Vector2(200, 32);
             statsBtn.relativePosition = new Vector3(230, height - 130);
             statsBtn.normalBgSprite = "ButtonMenu";
@@ -210,7 +227,7 @@ namespace PoliticsMod
 
             // -------- Opinion Polling button --------
             var pollBtn = AddUIComponent<UIButton>();
-            pollBtn.text = "Opinion Polling";
+            pollBtn.text = L10n.T(L10nKeys.Panel_Button_OpinionPolling);
             pollBtn.size = new Vector2(200, 32);
             pollBtn.relativePosition = new Vector3(15, height - 170);
             pollBtn.normalBgSprite  = "ButtonMenu";
@@ -235,10 +252,10 @@ namespace PoliticsMod
             minChirpsCB.checkedBoxObject = cbChecked;
 
             var cbLbl = minChirpsCB.AddUIComponent<UILabel>();
-            cbLbl.text = "Minimize chirps";
+            cbLbl.text = L10n.T(L10nKeys.Panel_MinimizeChirps);
             cbLbl.textScale = 0.8f;
             cbLbl.relativePosition = new Vector3(22f, 3f);
-            cbLbl.tooltip = "Only post essential chirps: campaign start, election results, and bill passages.";
+            cbLbl.tooltip = L10n.T(L10nKeys.Panel_MinimizeChirps_Tooltip);
 
             minChirpsCB.isChecked = DebugFlags.MinimalChirps;
             minChirpsCB.eventCheckChanged += (c, v) => { DebugFlags.MinimalChirps = v; };
@@ -250,31 +267,25 @@ namespace PoliticsMod
             // for the taller policy-icon row (22px icons).
             float sliderY = 320f + extraLegend;
             var header = AddUIComponent<UILabel>();
-            header.text = "Election timings (editable)";
+            header.text = L10n.T(L10nKeys.Panel_ElectionTimings);
             header.textScale = 0.95f;
             header.relativePosition = new Vector3(15, sliderY);
             sliderY += 26f;
 
-            _termLbl = BuildSliderRow(sliderY, "Term length", out _termSlider,
+            _termLbl = BuildSliderRow(sliderY, L10n.T(L10nKeys.Panel_Slider_TermLength), out _termSlider,
                 RuntimeConfig.MinTerm, RuntimeConfig.MaxTerm, RuntimeConfig.TermLengthDays,
                 v => { RuntimeConfig.TermLengthDays = v; RuntimeConfig.ClampAll(); UpdateSliderLabels(); });
             sliderY += 48f;
 
-            _campLbl = BuildSliderRow(sliderY, "Campaign length", out _campSlider,
+            _campLbl = BuildSliderRow(sliderY, L10n.T(L10nKeys.Panel_Slider_CampaignLength), out _campSlider,
                 RuntimeConfig.MinCampaign, RuntimeConfig.MaxCampaign, RuntimeConfig.CampaignLengthDays,
                 v => { RuntimeConfig.CampaignLengthDays = v; RuntimeConfig.ClampAll(); UpdateSliderLabels(); });
             sliderY += 48f;
 
-            _coolLbl = BuildSliderRow(sliderY, "Re-election cooldown", out _coolSlider,
+            _coolLbl = BuildSliderRow(sliderY, L10n.T(L10nKeys.Panel_Slider_ReElectionCooldown), out _coolSlider,
                 RuntimeConfig.MinCooldown, RuntimeConfig.MaxCooldown, RuntimeConfig.ReElectionCooldownDays,
                 v => { RuntimeConfig.ReElectionCooldownDays = v; RuntimeConfig.ClampAll(); UpdateSliderLabels(); },
-                "In-game days parliament waits in limbo after a FAILED coalition\n" +
-                "before auto-calling a snap re-election.\n" +
-                "\n" +
-                "Only triggers when no combination of parties can form a majority\n" +
-                "within the coalition-partner cap. Set to 0 for immediate retries,\n" +
-                "higher for a longer political deadlock. Has no effect on normal\n" +
-                "elections where a coalition succeeds.");
+                L10n.T(L10nKeys.Panel_Slider_ReElectionCooldown_Tooltip));
 
             UpdateSliderLabels();
         }
@@ -326,9 +337,9 @@ namespace PoliticsMod
 
         private void UpdateSliderLabels()
         {
-            if (_termLbl != null) _termLbl.text = ((int)RuntimeConfig.TermLengthDays) + " days";
-            if (_campLbl != null) _campLbl.text = ((int)RuntimeConfig.CampaignLengthDays) + " days";
-            if (_coolLbl != null) _coolLbl.text = ((int)RuntimeConfig.ReElectionCooldownDays) + " days";
+            if (_termLbl != null) _termLbl.text = L10n.T(L10nKeys.Panel_Days, (int)RuntimeConfig.TermLengthDays);
+            if (_campLbl != null) _campLbl.text = L10n.T(L10nKeys.Panel_Days, (int)RuntimeConfig.CampaignLengthDays);
+            if (_coolLbl != null) _coolLbl.text = L10n.T(L10nKeys.Panel_Days, (int)RuntimeConfig.ReElectionCooldownDays);
             // Keep sliders in sync if ClampAll modified values
             if (_termSlider != null && Mathf.Abs(_termSlider.value - RuntimeConfig.TermLengthDays) > 0.5f)
                 _termSlider.value = RuntimeConfig.TermLengthDays;
@@ -356,17 +367,17 @@ namespace PoliticsMod
 
             if (st.Phase == ElectionPhase.Campaign)
             {
-                _phaseLabel.text = string.Format(
-                    "Phase: {0} | Day {1}/{2} of campaign",
-                    st.Phase,
+                _phaseLabel.text = L10n.T(L10nKeys.Panel_Phase_Campaign,
+                    LocalizedPhaseName(st.Phase),
                     Mathf.Clamp((int)st.DaysSinceCampaignStart + 1,
                                 1, (int)RuntimeConfig.CampaignLengthDays),
                     (int)RuntimeConfig.CampaignLengthDays);
             }
             else
             {
-                _phaseLabel.text = string.Format("Phase: {0} | Day {1}/{2} of term",
-                    st.Phase, (int)st.DaysSinceLastElection, (int)RuntimeConfig.TermLengthDays);
+                _phaseLabel.text = L10n.T(L10nKeys.Panel_Phase_Term,
+                    LocalizedPhaseName(st.Phase),
+                    (int)st.DaysSinceLastElection, (int)RuntimeConfig.TermLengthDays);
             }
 
             // Parliament hemicycle + legend
@@ -377,7 +388,7 @@ namespace PoliticsMod
             // Coalition
             if (st.CoalitionPartyIds != null && st.CoalitionPartyIds.Count > 0)
             {
-                var sb = new StringBuilder("Coalition: ");
+                var sb = new StringBuilder();
                 for (int i = 0; i < st.CoalitionPartyIds.Count; i++)
                 {
                     if (i > 0) sb.Append(" + ");
@@ -385,12 +396,12 @@ namespace PoliticsMod
                 }
                 int totalSeats = 0;
                 foreach (var id in st.CoalitionPartyIds) totalSeats += st.CurrentSeats[id];
-                sb.Append("  (" + totalSeats + "/" + Config.ParliamentSeats + ")");
-                _coalitionLabel.text = sb.ToString();
+                _coalitionLabel.text = L10n.T(L10nKeys.Panel_Coalition_Header,
+                    sb.ToString(), totalSeats, Config.ParliamentSeats);
             }
             else
             {
-                _coalitionLabel.text = "Coalition: (none)";
+                _coalitionLabel.text = L10n.T(L10nKeys.Panel_Coalition_None);
             }
 
             // Policies - horizontal icon row. The row is rebuilt only when
@@ -409,7 +420,32 @@ namespace PoliticsMod
                 RebuildPoliciesIcons(policies);
             }
 
-            _overlayBtn.text = "Overlay: " + st.Overlay;
+            _overlayBtn.text = L10n.T(L10nKeys.Panel_Overlay_Prefix, LocalizedOverlayName(st.Overlay));
+        }
+
+        private static string LocalizedOverlayName(OverlayMode m)
+        {
+            switch (m)
+            {
+                case OverlayMode.Party:        return L10n.T(L10nKeys.Overlay_Party);
+                case OverlayMode.Turnout:      return L10n.T(L10nKeys.Overlay_Turnout);
+                case OverlayMode.Satisfaction: return L10n.T(L10nKeys.Overlay_Satisfaction);
+                default:                       return L10n.T(L10nKeys.Overlay_Off);
+            }
+        }
+
+        private static string LocalizedPhaseName(ElectionPhase p)
+        {
+            switch (p)
+            {
+                case ElectionPhase.Idle:      return L10n.T(L10nKeys.Phase_Idle);
+                case ElectionPhase.Campaign:  return L10n.T(L10nKeys.Phase_Campaign);
+                case ElectionPhase.Voting:    return L10n.T(L10nKeys.Phase_Voting);
+                case ElectionPhase.Forming:   return L10n.T(L10nKeys.Phase_Forming);
+                case ElectionPhase.Governing: return L10n.T(L10nKeys.Phase_Governing);
+                case ElectionPhase.Failed:    return L10n.T(L10nKeys.Phase_Failed);
+                default:                      return p.ToString();
+            }
         }
 
         /// <summary>
@@ -433,7 +469,7 @@ namespace PoliticsMod
             if (policies == null || policies.Count == 0)
             {
                 var none = _policiesIconRow.AddUIComponent<UILabel>();
-                none.text = "(none)";
+                none.text = L10n.T(L10nKeys.Panel_ActivePolicies_None);
                 none.textScale = 0.8f;
                 none.relativePosition = new Vector3(0f, 0f);
                 return;
@@ -468,7 +504,7 @@ namespace PoliticsMod
             if (overflow)
             {
                 var more = _policiesIconRow.AddUIComponent<UILabel>();
-                more.text = "+" + (policies.Count - shown);
+                more.text = L10n.T(L10nKeys.Panel_Policies_More, policies.Count - shown);
                 more.textScale = 0.75f;
                 more.relativePosition = new Vector3(x, 3f);
                 // Tooltip lists every policy that was hidden.

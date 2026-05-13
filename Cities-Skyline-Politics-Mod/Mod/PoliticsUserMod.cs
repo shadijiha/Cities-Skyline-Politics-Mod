@@ -10,6 +10,7 @@ using ColossalFramework.Math;
 using ColossalFramework.UI;
 using HarmonyLib;
 using ICities;
+using PoliticsMod.Localization;
 using UnityEngine;
 
 namespace PoliticsMod
@@ -21,13 +22,14 @@ namespace PoliticsMod
     // ========================================================================
     public class PoliticsUserMod : ICities.IUserMod
     {
-        public string Name        { get { return "Politics & Elections Mod"; } }
-        public string Description { get { return "Citizens elect a parliament; coalitions shape city policies. Press Ctrl+P to open panel."; } }
+        public string Name        { get { return L10n.T(L10nKeys.Mod_Name); } }
+        public string Description { get { return L10n.T(L10nKeys.Mod_Description); } }
 
         public void OnEnabled()
         {
             Log("OnEnabled");
             ModSettings.Load();
+            L10n.Init();
             HarmonyPatcher.PatchAll();
         }
 
@@ -39,15 +41,35 @@ namespace PoliticsMod
 
         public void OnSettingsUI(UIHelperBase helper)
         {
-            var group = helper.AddGroup("Politics & Elections");
-            group.AddCheckbox("Enable debug logging", DebugFlags.Verbose, v =>
+            var group = helper.AddGroup(L10n.T(L10nKeys.Settings_Group_Main));
+
+            // --- Language selector --------------------------------------
+            // "Auto" follows the game language if we have a catalog for it,
+            // otherwise falls back to English. Any other entry locks the UI
+            // to that language regardless of the game setting.
+            var langCodes = BuildLanguageCodeList();   // [""] + L10n.SupportedCodes()
+            var langLabels = new string[langCodes.Count];
+            int langSelected = 0;
+            for (int i = 0; i < langCodes.Count; i++)
+            {
+                langLabels[i] = LanguageDropdownLabel(langCodes[i]);
+                if (langCodes[i] == (RuntimeConfig.LanguageOverride ?? "")) langSelected = i;
+            }
+            group.AddDropdown(L10n.T(L10nKeys.Settings_Language), langLabels, langSelected, v =>
+            {
+                if (v < 0 || v >= langCodes.Count) return;
+                L10n.SetOverride(langCodes[v]);
+                ModSettings.Save();
+            });
+
+            group.AddCheckbox(L10n.T(L10nKeys.Settings_EnableDebugLogging), DebugFlags.Verbose, v =>
             {
                 DebugFlags.Verbose = v;
                 ModSettings.Save();
             });
 
             // --- Panel toggle hotkey ------------------------------------
-            var keyGroup = helper.AddGroup("Panel toggle hotkey");
+            var keyGroup = helper.AddGroup(L10n.T(L10nKeys.Settings_Group_Hotkey));
 
             // Pre-curated list of sensible hotkey candidates (single letters,
             // F-keys, and a couple of punctuation keys). Most people won't
@@ -66,7 +88,7 @@ namespace PoliticsMod
                 if (choices[i] == RuntimeConfig.TogglePanelKey) selected = i;
             }
 
-            keyGroup.AddDropdown("Hotkey", labels, selected, v =>
+            keyGroup.AddDropdown(L10n.T(L10nKeys.Settings_Hotkey), labels, selected, v =>
             {
                 if (v >= 0 && v < choices.Count)
                 {
@@ -75,7 +97,7 @@ namespace PoliticsMod
                 }
             });
 
-            keyGroup.AddCheckbox("Require Ctrl modifier",
+            keyGroup.AddCheckbox(L10n.T(L10nKeys.Settings_RequireCtrl),
                 RuntimeConfig.TogglePanelRequireCtrl,
                 v =>
                 {
@@ -84,8 +106,8 @@ namespace PoliticsMod
                 });
 
             // --- Utility buttons ----------------------------------------
-            var utilGroup = helper.AddGroup("Utilities");
-            utilGroup.AddButton("Open Elections panel", () => {
+            var utilGroup = helper.AddGroup(L10n.T(L10nKeys.Settings_Group_Utilities));
+            utilGroup.AddButton(L10n.T(L10nKeys.Settings_OpenElectionsPanel), () => {
                 if (PoliticsPanel.Instance != null)
                 {
                     PoliticsPanel.Show();
@@ -102,6 +124,28 @@ namespace PoliticsMod
         public static void Log(string msg)
         {
             if (DebugFlags.Verbose) Debug.Log(Config.LogPrefix + msg);
+        }
+
+        // Codes for the language dropdown. First entry is "" (Auto),
+        // followed by every registered catalog code.
+        private static List<string> BuildLanguageCodeList()
+        {
+            var list = new List<string>();
+            list.Add("");                              // Auto
+            foreach (var c in L10n.SupportedCodes())   // en, zh, ja, pt, ru, ...
+                list.Add(c);
+            return list;
+        }
+
+        // Label shown in the dropdown for a given code. "" renders as
+        // "Auto (game language)"; every other code renders as the catalog's
+        // native display name (e.g. "简体中文", "Русский").
+        private static string LanguageDropdownLabel(string code)
+        {
+            if (string.IsNullOrEmpty(code)) return L10n.T(L10nKeys.Settings_Language_Auto);
+            var lang = L10n.GetCatalog(code);
+            if (lang != null && !string.IsNullOrEmpty(lang.DisplayName)) return lang.DisplayName;
+            return code;
         }
     }
 }

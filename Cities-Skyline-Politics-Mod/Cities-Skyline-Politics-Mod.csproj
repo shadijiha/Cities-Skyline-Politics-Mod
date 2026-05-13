@@ -124,6 +124,14 @@
         <Compile Include="Engine\OpinionPolling.cs"/>
         <Compile Include="Harmony\BuildingAI_GetColor_Patch.cs"/>
         <Compile Include="Harmony\HarmonyPatcher.cs"/>
+        <Compile Include="Localization\L10n.cs"/>
+        <Compile Include="Localization\L10nKeys.cs"/>
+        <Compile Include="Localization\Language.cs"/>
+        <Compile Include="Localization\Languages\En.cs"/>
+        <Compile Include="Localization\Languages\Ja.cs"/>
+        <Compile Include="Localization\Languages\Pt.cs"/>
+        <Compile Include="Localization\Languages\Ru.cs"/>
+        <Compile Include="Localization\Languages\Zh.cs"/>
         <Compile Include="Mod\DebugFlags.cs"/>
         <Compile Include="Mod\PoliticsLoadingExt.cs"/>
         <Compile Include="Mod\PoliticsSerialization.cs"/>
