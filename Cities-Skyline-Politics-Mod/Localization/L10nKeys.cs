@@ -99,6 +99,7 @@ namespace PoliticsMod.Localization
         public const string PartyEditor_Budget_Industry       = "PartyEditor_Budget_Industry";
         public const string PartyEditor_NewPartyShortName     = "PartyEditor_NewPartyShortName";
         public const string PartyEditor_NewPartyFullName      = "PartyEditor_NewPartyFullName";
+        public const string PartyEditor_ResetAll              = "PartyEditor_ResetAll";
 
         // Voter Traits panel
         public const string VoterTraits_Title                 = "VoterTraits_Title";

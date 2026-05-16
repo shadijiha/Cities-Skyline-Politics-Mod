@@ -29,6 +29,11 @@ namespace PoliticsMod
             base.OnLoadData();
             if (PoliticsState.Instance == null) PoliticsState.Instance = new PoliticsState();
 
+            // Always reset to defaults first so that stale static state from a
+            // previously loaded save never bleeds into this one. The saved party
+            // list (v3+) will overwrite this below if present.
+            Config.Parties = Config.DefaultParties();
+
             byte[] bytes = null;
             try
             {

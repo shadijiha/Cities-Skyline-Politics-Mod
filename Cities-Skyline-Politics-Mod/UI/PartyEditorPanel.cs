@@ -58,8 +58,8 @@ namespace PoliticsMod
         private UIScrollablePanel _formPanel;
         private UIScrollbar _formScroll;
 
-        // Add/Remove buttons at the bottom of the list.
-        private UIButton _addBtn, _removeBtn;
+        // Add/Remove/Reset buttons at the bottom of the list.
+        private UIButton _addBtn, _removeBtn, _resetBtn;
 
         // Header title and close glyph - retained so OnLanguageChanged
         // can re-localize them without rebuilding the whole panel.
@@ -70,7 +70,7 @@ namespace PoliticsMod
         {
             base.Start();
             width = 1100;
-            height = 760;
+            height = 800;
             backgroundSprite = "MenuPanel2";
             canFocus = true;
             isInteractive = true;
@@ -110,6 +110,7 @@ namespace PoliticsMod
             if (_closeBtn   != null) _closeBtn.text   = L10n.T(L10nKeys.Common_CloseX);
             if (_addBtn     != null) _addBtn.text     = L10n.T(L10nKeys.PartyEditor_Add);
             if (_removeBtn  != null) _removeBtn.text  = L10n.T(L10nKeys.PartyEditor_Remove);
+            if (_resetBtn   != null) _resetBtn.text   = L10n.T(L10nKeys.PartyEditor_ResetAll);
             RebuildList();
             RebuildForm();
         }
@@ -135,12 +136,12 @@ namespace PoliticsMod
             // ---- Left: party list ----
             _listPanel = AddUIComponent<UIPanel>();
             _listPanel.relativePosition = new Vector3(15, 50);
-            _listPanel.size = new Vector2(220, height - 110);
+            _listPanel.size = new Vector2(220, height - 150);
             _listPanel.backgroundSprite = "GenericPanel";
             _listPanel.color = new Color32(40, 40, 45, 220);            _addBtn = AddUIComponent<UIButton>();
             _addBtn.text = L10n.T(L10nKeys.PartyEditor_Add);
             _addBtn.size = new Vector2(105, 28);
-            _addBtn.relativePosition = new Vector3(15, height - 50);
+            _addBtn.relativePosition = new Vector3(15, height - 90);
             _addBtn.normalBgSprite = "ButtonMenu";
             _addBtn.hoveredBgSprite = "ButtonMenuHovered";
             _addBtn.pressedBgSprite = "ButtonMenuPressed";
@@ -150,12 +151,23 @@ namespace PoliticsMod
             _removeBtn = AddUIComponent<UIButton>();
             _removeBtn.text = L10n.T(L10nKeys.PartyEditor_Remove);
             _removeBtn.size = new Vector2(105, 28);
-            _removeBtn.relativePosition = new Vector3(130, height - 50);
+            _removeBtn.relativePosition = new Vector3(130, height - 90);
             _removeBtn.normalBgSprite = "ButtonMenu";
             _removeBtn.hoveredBgSprite = "ButtonMenuHovered";
             _removeBtn.pressedBgSprite = "ButtonMenuPressed";
             _removeBtn.textColor = Color.white;
             _removeBtn.eventClick += (c, p) => { OnRemoveClicked(); };
+
+            _resetBtn = AddUIComponent<UIButton>();
+            _resetBtn.text = L10n.T(L10nKeys.PartyEditor_ResetAll);
+            _resetBtn.size = new Vector2(220, 28);
+            _resetBtn.relativePosition = new Vector3(15, height - 55);
+            _resetBtn.normalBgSprite = "ButtonMenu";
+            _resetBtn.hoveredBgSprite = "ButtonMenuHovered";
+            _resetBtn.pressedBgSprite = "ButtonMenuPressed";
+            _resetBtn.textColor = new Color32(255, 200, 100, 255);
+            _resetBtn.textScale = 0.85f;
+            _resetBtn.eventClick += (c, p) => { OnResetAllClicked(); };
 
             // ---- Right: detail form (scrollable) ----
             // Container just to hold the scrollbar next to the scrollable panel.
@@ -945,6 +957,21 @@ namespace PoliticsMod
             RebuildList();
             RebuildForm();
             PoliticsUserMod.Log("Removed party: " + removed + " (idx=" + removedIdx + ")");
+        }
+
+        private void OnResetAllClicked()
+        {
+            Config.Parties = Config.DefaultParties();
+
+            // Resize / remap all per-party state arrays to match the new count.
+            ResizePerPartyArrays();
+            // Invalidate polling history so old per-party indices don't bleed in.
+            OpinionPolling.Reset();
+
+            _selectedIdx = 0;
+            RebuildList();
+            RebuildForm();
+            PoliticsUserMod.Log("Reset all parties to defaults.");
         }
 
         /// <summary>

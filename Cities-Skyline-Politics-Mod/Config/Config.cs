@@ -83,8 +83,15 @@ namespace PoliticsMod
         //
         //  Platforms are (a) vanilla DistrictPolicy flags the party tries to enact,
         //  and (b) custom modifiers applied while the party is in the coalition.
-        public static PartyDef[] Parties = new PartyDef[]
+        /// <summary>
+        /// Returns a fresh copy of the built-in default party list.
+        /// Used both to initialise <see cref="Parties"/> on startup and to
+        /// restore it when the player clicks "Reset all parties".
+        /// </summary>
+        public static PartyDef[] DefaultParties()
         {
+            return new PartyDef[]
+            {
             new PartyDef
             {
                 Id = 0, ShortName = "GRN", FullName = "Green Progressive",
@@ -279,7 +286,10 @@ namespace PoliticsMod
                     HappinessDelta = +4, PollutionMultiplier = 0.95f
                 }
             },
-        };
+            };
+        }
+
+        public static PartyDef[] Parties = DefaultParties();
 
         public static int PartyCount()
         {
