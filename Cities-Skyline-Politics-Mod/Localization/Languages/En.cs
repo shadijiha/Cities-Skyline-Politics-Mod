@@ -106,6 +106,7 @@ namespace PoliticsMod.Localization.Languages
             s[L10nKeys.PartyEditor_Budget_Industry]       = "Industry";
             s[L10nKeys.PartyEditor_NewPartyShortName]     = "NEW{0}";
             s[L10nKeys.PartyEditor_NewPartyFullName]      = "New Party {0}";
+            s[L10nKeys.PartyEditor_ResetAll]              = "Reset to defaults";
 
             // Voter Traits
             s[L10nKeys.VoterTraits_Title]                 = "Voter Traits - Economic Axis Bias (-1 left ... +1 right)";

@@ -106,6 +106,7 @@ namespace PoliticsMod.Localization.Languages
             s[L10nKeys.PartyEditor_Budget_Industry]       = "産業";
             s[L10nKeys.PartyEditor_NewPartyShortName]     = "新{0}";
             s[L10nKeys.PartyEditor_NewPartyFullName]      = "新政党 {0}";
+            s[L10nKeys.PartyEditor_ResetAll]              = "既定値に戻す";
 
             // Voter Traits
             s[L10nKeys.VoterTraits_Title]                 = "有権者特性 — 経済軸バイアス(-1 左 … +1 右)";

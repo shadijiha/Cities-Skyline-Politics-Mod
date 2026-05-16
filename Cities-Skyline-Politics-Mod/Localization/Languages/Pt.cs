@@ -108,6 +108,7 @@ namespace PoliticsMod.Localization.Languages
             s[L10nKeys.PartyEditor_Budget_Industry]       = "Indústria";
             s[L10nKeys.PartyEditor_NewPartyShortName]     = "NOVO{0}";
             s[L10nKeys.PartyEditor_NewPartyFullName]      = "Novo Partido {0}";
+            s[L10nKeys.PartyEditor_ResetAll]              = "Restaurar padrões";
 
             // Voter Traits
             s[L10nKeys.VoterTraits_Title]                 = "Perfil dos Eleitores — Viés no eixo econômico (-1 esq. ... +1 dir.)";

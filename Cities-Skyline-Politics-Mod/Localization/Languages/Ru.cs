@@ -108,6 +108,7 @@ namespace PoliticsMod.Localization.Languages
             s[L10nKeys.PartyEditor_Budget_Industry]       = "Индустрия";
             s[L10nKeys.PartyEditor_NewPartyShortName]     = "НОВ{0}";
             s[L10nKeys.PartyEditor_NewPartyFullName]      = "Новая партия {0}";
+            s[L10nKeys.PartyEditor_ResetAll]              = "Сбросить";
 
             // Voter Traits
             s[L10nKeys.VoterTraits_Title]                 = "Характеристики избирателей — сдвиг по экономической оси (-1 лев. … +1 прав.)";
